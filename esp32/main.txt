@@ -13,7 +13,8 @@
  * GND  -> GND
  * SCL  -> GPIO 22
  * SDA  -> GPIO 21
-
+ * CSB  -> GPIO 23 (ustawiony na HIGH w setup)
+ * SDO  -> GND (adres I2C: 0x76)
  */
 
 WiFiClient espClient;
@@ -49,7 +50,7 @@ void connectWiFi() {
 }
 
 void syncNTP() {
-    configTime(3600, 3600, "time.cloudflare.com", "time.google.com");
+    configTime(0, 0, "pool.ntp.org", "time.nist.gov");
     struct tm timeinfo;
     Serial.print("Synchronizacja NTP");
     while (!getLocalTime(&timeinfo)) {
@@ -130,8 +131,8 @@ void setup() {
 
     // inicjalizacja BMP280, adres 0x76 bo SDO podlaczone do GND
     if (!bmp.begin(0x76)) {
-        Serial.println("Nie znaleziono BMP280! Sprawdz podlaczenie.");
-        delay(1000);
+        Serial.println("Nie znaleziono BMP280! Ponowna proba za 3s...");
+        delay(3000);
     }
     Serial.println("BMP280 gotowy.");
 
