@@ -124,3 +124,7 @@ Pełny kontrakt: [`docs/message_contract.md`](docs/message_contract.md).
 | 7-8 | LabVIEW UI — Zrobione                    |
 
 Lab 2 (dummy sensor) pominięty — od razu wdrożone BMP280.
+
+## Licencja
+
+Patrz plik [LICENSE](LICENSE).
