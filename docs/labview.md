@@ -121,6 +121,8 @@ Główny VI z front panelem (UI) i diagramem blokowym (logika). Cykl:
 | Lista urządzeń (dropdown)           | `GET /devices`                               |
 | Aktualne pomiary (kafelki)          | `GET /latest`                                |
 | Aktualne pomiary danego urządzenia  | `GET /latest?device_id=...`                  |
+| Tylko temperatura (ostatnia)        | `GET /latest/temperature`                    |
+| Tylko ciśnienie (ostatnie)          | `GET /latest/pressure`                       |
 | Wykres trendu temperatury           | `GET /history?sensor=temperature&limit=N`    |
 | Filtr device + sensor + limit       | `GET /history?device_id=...&sensor=...&limit=...` |
 
