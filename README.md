@@ -1,101 +1,130 @@
 # Rozproszone systemy pomiarowe
 
-Repozytorium startowe do projektu z systemów rozproszonych.  
-Projekt dotyczy budowy rozproszonego systemu pomiarowego, w którym urządzenia ESP32 zbierają dane z czujników, publikują je do brokera MQTT, a następnie dane są odbierane przez serwisy backendowe, zapisywane do bazy danych i udostępniane przez REST API.
+Rozproszony system pomiarowy: ESP32 z czujnikami BMP280 publikuje dane przez
+MQTT, ingestor zapisuje je do PostgreSQL, Flask REST API udostępnia odczyt
+dla klienta (planowany LabVIEW UI).
 
-Aktualnie projekt zawiera przygotowane serwisy backendowe uruchamiane przez Docker Compose oraz katalogi na kolejne elementy systemu, takie jak:
-- `esp32`
-- `ingestor`
-- `ui`
-- `docs`
+## Architektura
 
----
+```
+ESP32 + BMP280  ──MQTT──►  Mosquitto  ──MQTT──►  Ingestor  ──SQL──►  PostgreSQL
+                                                                          │
+                                                                          ▼
+                                              LabVIEW UI  ◄──HTTP──  Flask API
+```
 
-## Quick Start
+Pełna dokumentacja: [`docs/`](docs/) (moduły) lub
+[`DOKUMENTACJA.md`](DOKUMENTACJA.md) (wersja zbiorcza do druku).
 
-Poniższa instrukcja pozwala uruchomić podstawową wersję środowiska projektowego dla systemu rozproszonego.
+## Quick start
 
 ### Wymagania
 
-Przed uruchomieniem upewnij się, że masz zainstalowane:
-- Docker
-- Docker Compose
+- Docker + Docker Compose (Windows: WSL2 backend).
+- PlatformIO (VS Code) do firmware ESP32.
 
-### Klonowanie repozytorium
+### Konfiguracja
 
 ```bash
-git clone https://github.com/mateuszbartczak-pwr/Rozproszone-systemy-pomiarowe.git
-cd Rozproszone-systemy-pomiarowe
+cp .env.example .env
+# uzupełnij DB_NAME, DB_USER, DB_PASSWORD
 ```
 
-### Uruchomienie środowiska
-Aby zbudować i uruchomić wszystkie dostępne serwisy:
+### Uruchomienie
+
 ```bash
+# Pierwszy raz — z logami
 docker compose up --build
-```
-lub aby uruchomić środowisko w tle:
-```bash
+
+# W tle
 docker compose up -d --build
-```
-### Zatrzymanie środowiska
-```bash
+
+# Stop
 docker compose down
 ```
 
-### Aktualnie dostępne serwisy
+### Weryfikacja
 
-Po uruchomieniu Docker Compose powinny być dostępne następujące usługi:
+| Serwis     | Adres                          | Test                                       |
+|------------|--------------------------------|--------------------------------------------|
+| REST API   | http://localhost:5001          | `curl http://localhost:5001/health`        |
+| MQTT       | localhost:1883                 | MQTT Explorer, bez auth                    |
+| PostgreSQL | localhost:5432                 | `docker exec -it postgres psql -U admin -d abcd_db` |
 
-- REST API (Flask) — http://localhost:5001
+### Firmware ESP32
 
-- Broker MQTT — localhost:1883
-
-- PostgreSQL — localhost:5432
-
-### Podgląd logów
-
-Aby sprawdzić logi wszystkich serwisów:
 ```bash
-docker compose logs
+cp esp32/secrets.h.example esp32/include/secrets.h
+# uzupełnij WIFI_SSID, WIFI_PASSWORD, MQTT_HOST (IP hosta!), MQTT_GROUP
 ```
 
-Aby śledzić logi na żywo:
-```bash
-docker compose logs -f
+Build i flash z PlatformIO. Szczegóły: [`docs/esp32.md`](docs/esp32.md).
+
+## Struktura repo
+
+```
+.
+├── api/               # Flask REST API (port 5001)
+├── broker/            # Eclipse Mosquitto config (port 1883)
+├── database/          # PostgreSQL 18 + init SQL (port 5432)
+├── docs/              # Dokumentacja modułowa
+├── esp32/             # Firmware PlatformIO + BMP280
+├── ingestor/          # Subskrypcja MQTT → INSERT do bazy
+├── ui/                # LabVIEW UI
+├── utils/             # Skrypty pomocnicze (TODO)
+├── docker-compose.yml
+├── .env.example
+├── DOKUMENTACJA.md    # Wersja zbiorcza dokumentacji
+└── README.md
 ```
 
-Aby wyświetlić logi tylko jednego serwisu:
-```bash
-docker compose logs -f flask
-docker compose logs -f broker
-docker compose logs -f database
+## Endpointy REST API
+
+| Endpoint                                                       | Opis                                  |
+|----------------------------------------------------------------|---------------------------------------|
+| `GET /health`                                                  | Health check                          |
+| `GET /devices`                                                 | Lista unikalnych `device_id`          |
+| `GET /latest`                                                  | Ostatni pomiar per `(device, sensor)` |
+| `GET /latest?device_id=...`                                    | Filtruje po urządzeniu                |
+| `GET /latest/temperature`                                      | Ostatnia temperatura per urządzenie   |
+| `GET /history?limit=N`                                         | Historia, DESC                        |
+| `GET /history?device_id=...&sensor=...&limit=...`              | Filtrowana historia                   |
+
+Szczegóły: [`docs/api.md`](docs/api.md).
+
+## Format wiadomości MQTT
+
+Topic: `lab/<group_id>/<device_id>/<sensor>`
+
+Payload (JSON):
+```json
+{
+  "schema_version": 1,
+  "group_id": "g03",
+  "device_id": "esp32-F88DAB004F8C",
+  "sensor": "temperature",
+  "value": 24.5,
+  "unit": "C",
+  "ts_ms": 1742030400000,
+  "seq": 15
+}
 ```
-Sprawdzenie statusu kontenerów
-```bash
-docker compose ps
-```
 
-### Struktura projektu
+Pełny kontrakt: [`docs/message_contract.md`](docs/message_contract.md).
 
-Repozytorium zawiera między innymi następujące katalogi:
+## Status laboratoriów
 
-- `api/` — backend REST API
+| Lab | Status                                  |
+|-----|------------------------------------------|
+| 0-1 | Architektura + uruchomienie środowiska — OK |
+| 3   | ESP32 + MQTT — OK                        |
+| 4   | Kontrakt danych — OK                     |
+| 5   | Ingestor → DB — OK                       |
+| 6   | REST API — OK                            |
+| 7-8 | LabVIEW UI — Zrobione                    |
 
-- `broker/` — broker MQTT
+Lab 2 (dummy sensor) pominięty — od razu wdrożone BMP280.
 
-- `database/` — baza danych PostgreSQL
+## Licencja
 
-- `esp32/` — kod dla urządzeń ESP32
-
-- `ingestor/` — serwis odbierający dane z MQTT i zapisujący je do bazy
-
-- `ui/` — warstwa interfejsu użytkownika
-
-- `docs/` — dokumentacja projektu
-
-- `utils/` — narzędzia pomocnicze
-
-### Uwagi
-
-Projekt będzie rozwijany etapami w trakcie semestru.
-W kolejnych zajęciach repozytorium będzie rozszerzane o dodatkowe serwisy, integracje i mechanizmy bezpieczeństwa.
+Patrz plik [LICENSE](LICENSE).
