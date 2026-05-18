@@ -115,10 +115,7 @@ def get_history():
 
     return jsonify(results)
 
-@app.route("/latest/temperature")
-def get_latest_temperature():
-    device_id = request.args.get("device_id")
-
+def _get_latest_by_sensor(sensor_name, device_id):
     conn = db.get_connection()
     cur = conn.cursor()
 
@@ -127,35 +124,41 @@ def get_latest_temperature():
             SELECT DISTINCT ON (device_id)
                 device_id, sensor, value, unit, ts_ms, received_at
             FROM measurements
-            WHERE sensor = 'temperature'
+            WHERE sensor = %s
             AND device_id = %s
             ORDER BY device_id, received_at DESC
-        """, (device_id,))
+        """, (sensor_name, device_id))
     else:
         cur.execute("""
             SELECT DISTINCT ON (device_id)
                 device_id, sensor, value, unit, ts_ms, received_at
             FROM measurements
-            WHERE sensor = 'temperature'
+            WHERE sensor = %s
             ORDER BY device_id, received_at DESC
-        """)
+        """, (sensor_name,))
 
     rows = cur.fetchall()
     cur.close()
     conn.close()
 
-    result = []
-    for row in rows:
-        result.append({
-            "device_id":   row[0],
-            "sensor":      row[1],
-            "value":       row[2],
-            "unit":        row[3],
-            "ts_ms":       row[4],
-            "received_at": row[5].isoformat()
-        })
+    return [{
+        "device_id":   row[0],
+        "sensor":      row[1],
+        "value":       row[2],
+        "unit":        row[3],
+        "ts_ms":       row[4],
+        "received_at": row[5].isoformat()
+    } for row in rows]
 
-    return jsonify(result)
+
+@app.route("/latest/temperature")
+def get_latest_temperature():
+    return jsonify(_get_latest_by_sensor("temperature", request.args.get("device_id")))
+
+
+@app.route("/latest/pressure")
+def get_latest_pressure():
+    return jsonify(_get_latest_by_sensor("pressure", request.args.get("device_id")))
 
 
 if __name__ == '__main__':

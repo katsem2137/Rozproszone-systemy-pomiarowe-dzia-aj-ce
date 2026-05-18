@@ -110,7 +110,7 @@ ORDER BY device_id, sensor, received_at DESC
 
 ### `GET /latest/temperature`
 
-Skrót: ostatnia temperatura dla każdego urządzenia (tylko `sensor = 'temperature'`).
+Ostatnia temperatura dla każdego urządzenia (tylko `sensor = 'temperature'`).
 
 **Parametry**:
 - `device_id` (opcjonalny).
@@ -121,6 +121,23 @@ curl http://localhost:5001/latest/temperature
 ```
 
 **Odpowiedź**: jak `/latest`, ale tylko temperatury.
+
+---
+
+### `GET /latest/pressure`
+
+Ostatnie ciśnienie dla każdego urządzenia (tylko `sensor = 'pressure'`).
+
+**Parametry**:
+- `device_id` (opcjonalny).
+
+**Przykłady**:
+```bash
+curl http://localhost:5001/latest/pressure
+curl "http://localhost:5001/latest/pressure?device_id=esp32-F88DAB004F8C"
+```
+
+**Odpowiedź**: jak `/latest`, ale tylko ciśnienia.
 
 ---
 
