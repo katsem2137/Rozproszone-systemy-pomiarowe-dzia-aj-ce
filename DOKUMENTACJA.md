@@ -356,7 +356,71 @@ Pełna dokumentacja: [`docs/labview.md`](docs/labview.md).
 
 ---
 
-## 9. Test end-to-end
+## 9. Niezawodność ESP32 (lab 9)
+
+Firmware został przepisany na **non-blocking** scheduler oparty o `millis()`.
+Wszystkie operacje sieciowe (reconnect Wi-Fi, reconnect MQTT, publikacja)
+działają bez blokujących pętli `while`.
+
+### Topic statusowy
+
+```
+lab/<group_id>/<device_id>/status
+```
+
+Topic techniczny oddzielony od pomiarowych. Payload `online` (retained)
+po reconnect, `offline` (LWT, retained) — broker publikuje sam przy
+niepoprawnym rozłączeniu klienta.
+
+```json
+{"device_id": "esp32-...", "status": "online", "ts_ms": 1742030400000}
+{"device_id": "esp32-...", "status": "offline"}
+```
+
+### Mechanizmy reconnect
+
+| Mechanizm        | Retry | Pre-warunek          |
+|------------------|-------|----------------------|
+| `connectWiFiIfNeeded()` | 5 s | —                |
+| `connectMqttIfNeeded()` | 3 s | Wi-Fi UP         |
+
+Każdy z nich w `loop()` sprawdza stan i pomija próbę jeśli ostatnia
+była zbyt świeża — żadnego `while`, żadnego `delay()` w ścieżce
+reconnect.
+
+### Last Will and Testament
+
+`mqttClient.connect()` rejestruje LWT przy każdym (re)connect:
+
+```c
+mqttClient.connect(
+    deviceId.c_str(),
+    topicStatus.c_str(),      // willTopic
+    0,                         // willQos
+    true,                      // willRetain
+    willPayload.c_str()        // {"device_id":..., "status":"offline"}
+);
+```
+
+Broker publikuje LWT gdy wykryje brak keepalive (~15 s w PubSubClient).
+
+### Scenariusze testowe (skrót)
+
+1. **Utrata Wi-Fi** — wyłącz AP / przenieś poza zasięg. Obserwuj UART
+   (`[WiFi] Brak polaczenia` co 5 s) i topic statusowy (`offline` po
+   wygaśnięciu keepalive).
+2. **Niedostępny broker** — `docker stop broker`. Obserwuj UART
+   (`[MQTT] Probuje polaczyc... blad`). Po `docker start broker` —
+   reconnect i `online`.
+3. **LWT** — odłącz zasilanie ESP. W MQTT Explorer na topicu statusowym
+   pojawi się `offline` po ~15 s.
+4. **Powrót do publikacji** — przywróć warunki, pomiary lecą dalej.
+
+Pełna dokumentacja: [`docs/reliability_esp32.md`](docs/reliability_esp32.md).
+
+---
+
+## 10. Test end-to-end
 
 1. Uruchom Compose: `docker compose up -d --build`.
 2. Wgraj firmware na ESP32 (skonfigurowany `secrets.h`).
@@ -372,7 +436,7 @@ Pełna dokumentacja: [`docs/labview.md`](docs/labview.md).
 
 ---
 
-## 10. Status vs laboratoria
+## 11. Status vs laboratoria
 
 | Lab  | Temat                                | Status                              |
 |------|--------------------------------------|--------------------------------------|
@@ -384,7 +448,7 @@ Pełna dokumentacja: [`docs/labview.md`](docs/labview.md).
 | 5    | Ingestor MQTT → DB                   | OK (`ingestor/`)                     |
 | 6    | REST API                             | OK (`api/`)                          |
 | 7-8  | LabVIEW UI                           | Zrobione                             |
-| 9    | Niezawodność (reconnect, LWT, QoS)   | Częściowo (reconnect Wi-Fi/MQTT na ESP) |
+| 9    | Niezawodność (reconnect, LWT, status)| OK (`esp32/src/main.cpp`, `docs/reliability_esp32.md`) |
 | 10   | Security MQTT (auth, ACL)            | Nie                                  |
 | 11   | TLS                                  | Nie                                  |
 | 12   | Obserwowalność (healthchecks, logi)  | Częściowo (`/health` jest)           |

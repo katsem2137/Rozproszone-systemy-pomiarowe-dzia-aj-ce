@@ -18,11 +18,22 @@
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 Adafruit_BMP280 bmp;
+
 String deviceId;
 String topicTemp;
 String topicPressure;
+String topicStatus;
 uint32_t seq = 0;
 bool sensorReady = false;
+
+// Non-blocking scheduler: znaczniki ostatnich prob / publikacji
+unsigned long lastWifiAttemptMs   = 0;
+unsigned long lastMqttAttemptMs   = 0;
+unsigned long lastMeasurementMs   = 0;
+
+const unsigned long WIFI_RETRY_MS         = 5000;
+const unsigned long MQTT_RETRY_MS         = 3000;
+const unsigned long MEASUREMENT_PERIOD_MS = 5000;
 
 String generateDeviceIdFromEfuse() {
     uint64_t chipId = ESP.getEfuseMac();
@@ -33,54 +44,105 @@ String generateDeviceIdFromEfuse() {
     return String(id);
 }
 
-void connectWiFi() {
-    Serial.print("Laczenie z Wi-Fi: ");
-    Serial.println(WIFI_SSID);
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        Serial.print(".");
-    }
-    Serial.println();
-    Serial.println("Polaczono z Wi-Fi");
-    Serial.print("Adres IP: ");
-    Serial.println(WiFi.localIP());
-}
-
-void syncNTP() {
-    configTime(3600, 3600, "time.cloudflare.com", "time.google.com");
-    struct tm timeinfo;
-    Serial.print("Synchronizacja NTP");
-    while (!getLocalTime(&timeinfo)) {
-        delay(500);
-        Serial.print(".");
-    }
-    Serial.println("\nCzas zsynchronizowany.");
-}
-
 long long getTimestampMs() {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return ((long long)tv.tv_sec * 1000LL) + (tv.tv_usec / 1000);
 }
 
-void connectMQTT() {
-    mqttClient.setServer(MQTT_HOST, MQTT_PORT);
-    while (!mqttClient.connected()) {
-        Serial.print("Laczenie z MQTT...");
-        if (mqttClient.connect(deviceId.c_str())) {
-            Serial.println("OK");
-        } else {
-            Serial.print("blad, rc=");
-            Serial.print(mqttClient.state());
-            Serial.println(" - ponowna proba za 2 s");
-            delay(2000);
-        }
+void syncNTP() {
+    configTime(3600, 3600, "time.cloudflare.com", "time.google.com");
+    struct tm timeinfo;
+    Serial.print("Synchronizacja NTP");
+    int tries = 0;
+    while (!getLocalTime(&timeinfo) && tries < 20) {
+        delay(500);
+        Serial.print(".");
+        tries++;
+    }
+    if (tries >= 20) {
+        Serial.println("\nNTP timeout - kontynuuje bez synchronizacji.");
+    } else {
+        Serial.println("\nCzas zsynchronizowany.");
     }
 }
 
+// Non-blocking reconnect Wi-Fi: probuje raz na WIFI_RETRY_MS, bez blokowania petli.
+void connectWiFiIfNeeded() {
+    if (WiFi.status() == WL_CONNECTED) {
+        return;
+    }
+    if (millis() - lastWifiAttemptMs < WIFI_RETRY_MS) {
+        return;
+    }
+    lastWifiAttemptMs = millis();
+
+    Serial.println("[WiFi] Brak polaczenia - probuje reconnect...");
+    WiFi.disconnect();
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+}
+
+// Publikuje status urzadzenia (retained) na topic statusowy.
+// state: "online" / "offline" / inny.
+void publishStatus(const char* state) {
+    if (!mqttClient.connected()) {
+        return;
+    }
+    StaticJsonDocument<128> doc;
+    doc["device_id"] = deviceId;
+    doc["status"]    = state;
+    doc["ts_ms"]     = getTimestampMs();
+
+    char payload[128];
+    serializeJson(doc, payload, sizeof(payload));
+    mqttClient.publish(topicStatus.c_str(), payload, true);  // retained
+    Serial.print("[STATUS] ");
+    Serial.println(payload);
+}
+
+// Non-blocking reconnect MQTT: dziala tylko gdy Wi-Fi UP, probuje raz na MQTT_RETRY_MS.
+// Konfiguruje Last Will (offline retained) + publikuje "online" po sukcesie.
+bool connectMqttIfNeeded() {
+    if (WiFi.status() != WL_CONNECTED) {
+        return false;
+    }
+    if (mqttClient.connected()) {
+        return true;
+    }
+    if (millis() - lastMqttAttemptMs < MQTT_RETRY_MS) {
+        return false;
+    }
+    lastMqttAttemptMs = millis();
+
+    Serial.print("[MQTT] Probuje polaczyc...");
+
+    String willPayload =
+        "{\"device_id\":\"" + deviceId + "\",\"status\":\"offline\"}";
+
+    bool ok = mqttClient.connect(
+        deviceId.c_str(),
+        topicStatus.c_str(),    // willTopic
+        0,                      // willQos
+        true,                   // willRetain
+        willPayload.c_str()     // willMessage
+    );
+
+    if (ok) {
+        Serial.println(" OK");
+        publishStatus("online");
+    } else {
+        Serial.print(" blad, rc=");
+        Serial.println(mqttClient.state());
+    }
+    return ok;
+}
+
 void publishMeasurement() {
+    if (!mqttClient.connected() || !sensorReady) {
+        return;
+    }
+
     long long ts = getTimestampMs();
     float temperature = bmp.readTemperature();
     float pressure    = bmp.readPressure() / 100.0; // Pa -> hPa
@@ -99,7 +161,7 @@ void publishMeasurement() {
     char payload[256];
     serializeJson(doc, payload);
     mqttClient.publish(topicTemp.c_str(), payload);
-    Serial.print("Publikacja: ");
+    Serial.print("[PUB] ");
     Serial.println(payload);
 
     // cisnienie
@@ -115,7 +177,7 @@ void publishMeasurement() {
 
     serializeJson(doc, payload);
     mqttClient.publish(topicPressure.c_str(), payload);
-    Serial.print("Publikacja: ");
+    Serial.print("[PUB] ");
     Serial.println(payload);
 }
 
@@ -148,39 +210,61 @@ void setup() {
     deviceId      = generateDeviceIdFromEfuse();
     topicTemp     = "lab/" + String(MQTT_GROUP) + "/" + deviceId + "/temperature";
     topicPressure = "lab/" + String(MQTT_GROUP) + "/" + deviceId + "/pressure";
+    topicStatus   = "lab/" + String(MQTT_GROUP) + "/" + deviceId + "/status";
 
     Serial.print("Device ID: ");
     Serial.println(deviceId);
+    Serial.print("Status topic: ");
+    Serial.println(topicStatus);
 
-    connectWiFi();
-    syncNTP();
-    connectMQTT();
+    // Inicjalne polaczenie - non-blocking (loop dokonczy reconnect jesli teraz nie wyjdzie)
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    Serial.println("[WiFi] Inicjuje polaczenie...");
+
+    // Krotkie blokujace oczekiwanie na pierwszy connect (do 10 s) - dla NTP
+    unsigned long t0 = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - t0 < 10000) {
+        delay(250);
+        Serial.print(".");
+    }
+    Serial.println();
+
+    if (WiFi.status() == WL_CONNECTED) {
+        Serial.print("[WiFi] OK, IP: ");
+        Serial.println(WiFi.localIP());
+        syncNTP();
+    } else {
+        Serial.println("[WiFi] Pierwsze polaczenie nie powiodlo sie - loop bedzie probowal dalej.");
+    }
+
+    mqttClient.setServer(MQTT_HOST, MQTT_PORT);
 }
 
 void loop() {
-    if (WiFi.status() != WL_CONNECTED) {
-        connectWiFi();
-        syncNTP();
-    }
-    if (!mqttClient.connected()) {
-        connectMQTT();
-    }
-    mqttClient.loop();
+    connectWiFiIfNeeded();
+    connectMqttIfNeeded();
+    mqttClient.loop();  // keepalive + obsluga LWT po stronie klienta
 
-    // Jezeli czujnik nadal niedostepny - sprobuj go znalezc
+    // Runtime retry BMP280 jezeli niedostepny
     if (!sensorReady) {
-        if (bmp.begin(0x76)) {
-            sensorReady = true;
-            Serial.println("BMP280 znaleziony - rozpoczynam publikacje.");
-        } else {
-            Serial.println("BMP280 nadal niedostepny - pomijam publikacje.");
+        static unsigned long lastSensorAttemptMs = 0;
+        if (millis() - lastSensorAttemptMs >= 5000) {
+            lastSensorAttemptMs = millis();
+            if (bmp.begin(0x76)) {
+                sensorReady = true;
+                Serial.println("BMP280 znaleziony - rozpoczynam publikacje.");
+            } else {
+                Serial.println("BMP280 nadal niedostepny.");
+            }
         }
     }
 
-    // Publikuj TYLKO gdy czujnik dziala
-    if (sensorReady) {
+    // Publikacja pomiaru co MEASUREMENT_PERIOD_MS (non-blocking)
+    if (millis() - lastMeasurementMs >= MEASUREMENT_PERIOD_MS) {
+        lastMeasurementMs = millis();
         publishMeasurement();
     }
 
-    delay(5000);
+    delay(10);  // oddaj czas WiFi/MQTT stackom, nie blokuje logiki
 }

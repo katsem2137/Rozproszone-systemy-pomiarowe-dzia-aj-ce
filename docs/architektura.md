@@ -107,3 +107,4 @@ Pozwala subskrybować selektywnie (np. tylko temperatury z wszystkich urządzeń
 | 5   | Ingestor MQTT → DB             | OK (`ingestor/ingestor.py`)            |
 | 6   | REST API                       | OK (`api/app.py`)                      |
 | 7-8 | LabVIEW UI                     | Zrobione                               |
+| 9   | Niezawodność ESP32 (reconnect, LWT) | OK (`esp32/src/main.cpp`, `docs/reliability_esp32.md`) |
