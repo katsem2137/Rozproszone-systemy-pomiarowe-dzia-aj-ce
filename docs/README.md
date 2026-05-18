@@ -14,6 +14,7 @@ PostgreSQL → Flask REST API → (LabVIEW UI).
 | [ingestor.md](ingestor.md)                     | Serwis MQTT → PostgreSQL                                      |
 | [baza.md](baza.md)                             | Schemat PostgreSQL, przykładowe zapytania                     |
 | [api.md](api.md)                               | REST API — endpointy, parametry, przykłady                    |
+| [labview.md](labview.md)                       | LabVIEW UI — VI, typedefy, JKI REST Client, uruchomienie      |
 
 ## Wersja do druku
 

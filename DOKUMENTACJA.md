@@ -300,7 +300,63 @@ curl "http://localhost:5001/history?device_id=esp32-F88DAB004F8C&sensor=temperat
 
 ---
 
-## 8. Test end-to-end
+## 8. LabVIEW UI
+
+Aplikacja desktopowa w LabVIEW — warstwa prezentacji. Komunikuje się
+z backendem przez REST (Flask, `localhost:5001`), działa **poza Dockerem**.
+
+### Wymagania
+
+- LabVIEW 2024 Q3 lub nowszy (`*.vi` w 24.3.1, `*.ctl` w 24.1.1).
+- **JKI REST Client** (instalacja przez VI Package Manager) —
+  używane: `Create REST Client.vi`, `HTTP GET.vi`,
+  `Destroy REST Client.vi`.
+
+### Struktura
+
+```
+labview/
+├── epoch to cluster.vi      # ts_ms (epoch ms) → LabVIEW timestamp
+└── template/
+    ├── main.vi              # Główny VI: UI + logika REST
+    ├── kontrakt.ctl         # Typedef cluster z parametrami żądania
+    │                        # (device_id, sensor, limit)
+    └── measure_data.ctl     # Typedef cluster pojedynczego pomiaru
+                             # (device_id, sensor, value, unit, ts_ms,
+                             #  received_at)
+```
+
+### Cykl działania (`main.vi`)
+
+1. `Create REST Client.vi` z `base URL = http://localhost:5001`.
+2. `HTTP GET.vi` → endpoint API (`/latest`, `/history`, …) z filtrami
+   z `kontrakt.ctl`.
+3. Parsowanie JSON → tablica clustrów `measure_data.ctl`.
+4. `epoch to cluster.vi` konwertuje `ts_ms` (I64) na timestamp.
+5. Wyświetlenie: wskaźniki + tabela + wykres trendu (XY Graph).
+6. `Destroy REST Client.vi` przy zamknięciu.
+
+### Mapowanie widoków na endpointy
+
+| Widok                                | Endpoint                                          |
+|--------------------------------------|---------------------------------------------------|
+| Lista urządzeń (dropdown)            | `GET /devices`                                    |
+| Aktualne pomiary                     | `GET /latest`                                     |
+| Aktualne dla urządzenia              | `GET /latest?device_id=...`                       |
+| Trend temperatury                    | `GET /history?sensor=temperature&limit=N`         |
+
+### Uruchomienie
+
+1. Backend działa: `docker compose up -d`, `curl :5001/health`.
+2. Otwórz `labview/template/main.vi` w LabVIEW.
+3. Jeśli brakuje JKI REST Client — doinstaluj przez VIPM.
+4. *Run* (biała strzałka).
+
+Pełna dokumentacja: [`docs/labview.md`](docs/labview.md).
+
+---
+
+## 9. Test end-to-end
 
 1. Uruchom Compose: `docker compose up -d --build`.
 2. Wgraj firmware na ESP32 (skonfigurowany `secrets.h`).
@@ -316,7 +372,7 @@ curl "http://localhost:5001/history?device_id=esp32-F88DAB004F8C&sensor=temperat
 
 ---
 
-## 9. Status vs laboratoria
+## 10. Status vs laboratoria
 
 | Lab  | Temat                                | Status                              |
 |------|--------------------------------------|--------------------------------------|
