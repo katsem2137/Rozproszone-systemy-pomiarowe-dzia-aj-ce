@@ -13,7 +13,6 @@
  * GND  -> GND
  * SCL  -> GPIO 22
  * SDA  -> GPIO 21
-
  */
 
 WiFiClient espClient;
@@ -23,6 +22,7 @@ String deviceId;
 String topicTemp;
 String topicPressure;
 uint32_t seq = 0;
+bool sensorReady = false;
 
 String generateDeviceIdFromEfuse() {
     uint64_t chipId = ESP.getEfuseMac();
@@ -128,14 +128,24 @@ void setup() {
     digitalWrite(23, HIGH);
     delay(100);
 
-    // inicjalizacja BMP280, adres 0x76 bo SDO podlaczone do GND
-    if (!bmp.begin(0x76)) {
-        Serial.println("Nie znaleziono BMP280! Sprawdz podlaczenie.");
+    // Probujemy znalezc BMP280: 10 prob co 1 sekunde
+    Serial.println("Inicjalizacja BMP280...");
+    for (int i = 1; i <= 10; i++) {
+        if (bmp.begin(0x76)) {
+            sensorReady = true;
+            Serial.println("BMP280 gotowy.");
+            break;
+        }
+        Serial.print("Proba ");
+        Serial.print(i);
+        Serial.println("/10 - nie znaleziono BMP280");
         delay(1000);
     }
-    Serial.println("BMP280 gotowy.");
+    if (!sensorReady) {
+        Serial.println("BMP280 niedostepny po 10 probach. Kontynuuje bez czujnika - publikacja wstrzymana.");
+    }
 
-    deviceId    = generateDeviceIdFromEfuse();
+    deviceId      = generateDeviceIdFromEfuse();
     topicTemp     = "lab/" + String(MQTT_GROUP) + "/" + deviceId + "/temperature";
     topicPressure = "lab/" + String(MQTT_GROUP) + "/" + deviceId + "/pressure";
 
@@ -156,6 +166,21 @@ void loop() {
         connectMQTT();
     }
     mqttClient.loop();
-    publishMeasurement();
+
+    // Jezeli czujnik nadal niedostepny - sprobuj go znalezc
+    if (!sensorReady) {
+        if (bmp.begin(0x76)) {
+            sensorReady = true;
+            Serial.println("BMP280 znaleziony - rozpoczynam publikacje.");
+        } else {
+            Serial.println("BMP280 nadal niedostepny - pomijam publikacje.");
+        }
+    }
+
+    // Publikuj TYLKO gdy czujnik dziala
+    if (sensorReady) {
+        publishMeasurement();
+    }
+
     delay(5000);
 }
