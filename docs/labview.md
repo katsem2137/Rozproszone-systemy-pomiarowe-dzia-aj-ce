@@ -1,5 +1,9 @@
 # LabVIEW UI
 
+> ⚠️ **ARCHIWUM.** Zrezygnowano z LabVIEW jako warstwy prezentacji — zastąpił go
+> dashboard webowy w Streamlit ([wykresy.md](wykresy.md)). Katalog `ui/` i ten
+> dokument zostają w repo jako archiwum/alternatywa.
+
 ## Opis
 
 Aplikacja desktopowa w LabVIEW pełniąca rolę warstwy prezentacji. Konsumuje

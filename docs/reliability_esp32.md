@@ -221,7 +221,7 @@ nadal działa bez czekania na cokolwiek.
   stabilność z poziomu UI.
 - **Pole `status` w bazie / API** — backend rejestruje historię stanów
   (osobna tabela `device_status`), API endpoint `/devices/status`,
-  LabVIEW UI pokazuje status każdego urządzenia.
+  dashboard pokazuje status każdego urządzenia.
 
 ## Powiązania z innymi dokumentami
 

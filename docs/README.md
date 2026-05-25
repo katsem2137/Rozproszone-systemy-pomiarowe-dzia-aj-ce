@@ -1,7 +1,7 @@
 # Dokumentacja projektu
 
 Rozproszony system pomiarowy: ESP32 + BMP280 → MQTT → ingestor →
-PostgreSQL → Flask REST API → (LabVIEW UI).
+PostgreSQL → Flask REST API → dashboard webowy (Streamlit).
 
 ## Spis treści
 
@@ -14,7 +14,8 @@ PostgreSQL → Flask REST API → (LabVIEW UI).
 | [ingestor.md](ingestor.md)                     | Serwis MQTT → PostgreSQL                                      |
 | [baza.md](baza.md)                             | Schemat PostgreSQL, przykładowe zapytania                     |
 | [api.md](api.md)                               | REST API — endpointy, parametry, przykłady                    |
-| [labview.md](labview.md)                       | LabVIEW UI — VI, typedefy, JKI REST Client, uruchomienie      |
+| [wykresy.md](wykresy.md)                       | Dashboard webowy (Streamlit) — aktualna warstwa prezentacji   |
+| [labview.md](labview.md)                       | LabVIEW UI — **archiwum** (zastąpione przez Streamlit)        |
 | [reliability_esp32.md](reliability_esp32.md)   | Niezawodność ESP32 — reconnect Wi-Fi/MQTT, status, LWT        |
 | [security_tls.md](security_tls.md)             | Bezpieczeństwo — TLS na MQTT (8883), własne CA, izolacja usług |
 
@@ -34,6 +35,6 @@ Cała dokumentacja zlepiona w jeden plik: [`DOKUMENTACJA.md`](../DOKUMENTACJA.md
 | 4   | Kontrakt danych                | Gotowe                                  |
 | 5   | Ingestor MQTT → DB             | Gotowe                                  |
 | 6   | REST API                       | Gotowe                                  |
-| 7-8 | LabVIEW UI                     | Zrobione                                |
+| 7-8 | Prezentacja danych             | Streamlit (`wykresy_python/`); LabVIEW w archiwum |
 | 9   | Niezawodność ESP32 (reconnect, LWT) | Zrobione (`docs/reliability_esp32.md`) |
 | 10  | Security MQTT — TLS, izolacja usług | Zrobione (`docs/security_tls.md`)   |

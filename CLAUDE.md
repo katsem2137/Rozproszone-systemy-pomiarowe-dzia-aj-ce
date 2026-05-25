@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Distributed measurement system (IoT → MQTT → Python → PostgreSQL → REST API → LabVIEW). A university lab project built incrementally across labs 0–13 (labs 0–8 completed).
+Distributed measurement system (IoT → MQTT → Python → PostgreSQL → REST API → Streamlit dashboard). A university lab project built incrementally (labs 0–10 done; lab 2 skipped). Presentation layer is a Streamlit web dashboard (`wykresy_python/`); the earlier LabVIEW UI (`ui/`) is archived.
 
 ## Running the System
 
@@ -39,7 +39,7 @@ GET /history?device_id=...&sensor=...&limit=...
 ESP32 + BMP280 (I2C GPIO 21/22)
   → MQTT/TLS publish → Mosquitto broker (8883 TLS, 1883 internal-only)
   → Ingestor subscribes to lab/+/+/+ → INSERT into PostgreSQL (port 5432)
-  → Flask REST API (port 5001) SELECT → LabVIEW desktop client
+  → Flask REST API (port 5001) SELECT → Streamlit dashboard (wykresy_python/, outside Docker)
 ```
 
 **MQTT topic pattern:** `lab/<group_id>/<device_id>/<sensor>`
@@ -57,6 +57,7 @@ ESP32 + BMP280 (I2C GPIO 21/22)
 | `broker/` | Mosquitto | Anonymous MQTT broker; TLS on 8883 (own CA, lab 10) + plaintext 1883 internal-only; persistence enabled |
 | `database/` | PostgreSQL 18 | Schema in `database/01-init_database.sql`; tables: `sensor`, `measurements` |
 | `esp32/` | C++/Arduino | Firmware; `esp32/src/main.cpp`; credentials in `esp32/secrets.h` (from `secrets.h.example`) |
+| `wykresy_python/` | Python/Streamlit | Web dashboard (presentation layer); reads the REST API; replaces LabVIEW (`ui/`, archived) |
 
 ## Configuration
 

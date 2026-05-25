@@ -16,7 +16,7 @@ backendowa odbiera, waliduje, zapisuje do bazy i udostępnia przez REST API.
                                                                     │ SELECT
                                                                     ▼
                                   ┌────────────────┐  HTTP    ┌─────────────┐
-                                  │   LabVIEW UI   │ ◄─────── │ Flask REST  │
+                                  │ Dashboard (web)│ ◄─────── │ Flask REST  │
                                   │                │   JSON   │     API     │
                                   └────────────────┘          └─────────────┘
 ```
@@ -63,10 +63,14 @@ backendowa odbiera, waliduje, zapisuje do bazy i udostępnia przez REST API.
 - Zwraca JSON.
 - Filtrowanie po `device_id`, `sensor`, `limit`.
 
-### 6. Warstwa prezentacji — LabVIEW
+### 6. Warstwa prezentacji — Dashboard webowy (Streamlit)
 
-- Klient REST z dashboardem (latest + trend historyczny + filtry).
-- Działa **poza Dockerem** — komunikuje się z Flask przez HTTP.
+- Aplikacja Streamlit (`wykresy_python/`) — kafelki aktualnych pomiarów, wykresy
+  trendu (Plotly), historia + eksport CSV, filtr dat, auto-odświeżanie.
+- Klient REST — czyta z Flask przez HTTP, nie zna schematu bazy.
+- Działa **poza Dockerem**. Szczegóły: [wykresy.md](wykresy.md).
+- LabVIEW (`ui/`) — poprzednia wersja prezentacji, w archiwum
+  ([labview.md](labview.md)).
 
 ## Konteneryzacja
 
@@ -80,7 +84,8 @@ Wszystkie serwisy backendowe uruchamiane przez Docker Compose. Cztery kontenery:
 | `api`      | `python:3.10-slim`     | 5001  | database            |
 
 Każdy kontener buduje się z własnego `Dockerfile` w odpowiednim katalogu.
-ESP32 i LabVIEW NIE są w Dockerze (urządzenie fizyczne / aplikacja desktopowa).
+ESP32 i dashboard (Streamlit) NIE są w Dockerze (urządzenie fizyczne / klient
+REST w przeglądarce).
 
 ## Decyzje architektoniczne
 
@@ -89,7 +94,7 @@ Rozdzielenie warstw — urządzenie nie zna struktury bazy, ingestor centralizuj
 walidację, kontrakt MQTT jest stabilnym interfejsem. Łatwiej dołożyć kolejne
 urządzenia lub kolejnego subskrybenta (np. drugi ingestor do innej bazy).
 
-**Dlaczego LabVIEW przez REST, a nie przez SQL?**
+**Dlaczego prezentacja przez REST, a nie przez SQL?**
 REST ukrywa schemat bazy, daje stabilny kontrakt, pozwala filtrować
 po stronie backendu. Zmiana schematu bazy nie wymaga zmian w UI.
 
@@ -108,6 +113,6 @@ Pozwala subskrybować selektywnie (np. tylko temperatury z wszystkich urządzeń
 | 4   | Kontrakt danych                | OK (`esp32/docs/message_contract.md`)  |
 | 5   | Ingestor MQTT → DB             | OK (`ingestor/ingestor.py`)            |
 | 6   | REST API                       | OK (`api/app.py`)                      |
-| 7-8 | LabVIEW UI                     | Zrobione                               |
+| 7-8 | Prezentacja danych             | Streamlit (`wykresy_python/`); LabVIEW w archiwum |
 | 9   | Niezawodność ESP32 (reconnect, LWT) | OK (`esp32/src/main.cpp`, `docs/reliability_esp32.md`) |
 | 10  | Security MQTT — TLS, izolacja usług | OK (`docs/security_tls.md`)            |

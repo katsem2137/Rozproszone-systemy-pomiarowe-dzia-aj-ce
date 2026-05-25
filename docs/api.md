@@ -3,7 +3,7 @@
 ## Opis
 
 Serwer Flask udostępniający dane pomiarowe z PostgreSQL przez HTTP/JSON.
-Klient (LabVIEW, przeglądarka, curl) wykonuje żądania GET, otrzymuje JSON.
+Klient (dashboard Streamlit, przeglądarka, curl) wykonuje żądania GET, otrzymuje JSON.
 
 ## Stos
 

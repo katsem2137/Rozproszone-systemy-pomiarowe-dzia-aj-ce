@@ -2,7 +2,7 @@
 
 Rozproszony system pomiarowy: ESP32 z czujnikami BMP280 publikuje dane przez
 MQTT, ingestor zapisuje je do PostgreSQL, Flask REST API udostępnia odczyt
-dla klienta (planowany LabVIEW UI).
+dla klienta — dashboard webowy w Streamlit (`wykresy_python/`).
 
 ## Architektura
 
@@ -10,7 +10,7 @@ dla klienta (planowany LabVIEW UI).
 ESP32 + BMP280  ──MQTT──►  Mosquitto  ──MQTT──►  Ingestor  ──SQL──►  PostgreSQL
                                                                           │
                                                                           ▼
-                                              LabVIEW UI  ◄──HTTP──  Flask API
+                                              Dashboard   ◄──HTTP──  Flask API
 ```
 
 Pełna dokumentacja: [`docs/`](docs/) (moduły) lub
@@ -71,8 +71,9 @@ Build i flash z PlatformIO. Szczegóły: [`docs/esp32.md`](docs/esp32.md).
 ├── docs/              # Dokumentacja modułowa
 ├── esp32/             # Firmware PlatformIO + BMP280
 ├── ingestor/          # Subskrypcja MQTT → INSERT do bazy
-├── ui/                # LabVIEW UI
+├── ui/                # LabVIEW UI (archiwum — zastąpione przez wykresy_python/)
 ├── utils/             # Skrypty pomocnicze (TODO)
+├── wykresy_python/    # Dashboard webowy (Streamlit) — warstwa prezentacji
 ├── docker-compose.yml
 ├── .env.example
 ├── DOKUMENTACJA.md    # Wersja zbiorcza dokumentacji
@@ -122,7 +123,9 @@ Pełny kontrakt: [`docs/message_contract.md`](docs/message_contract.md).
 | 4   | Kontrakt danych — OK                     |
 | 5   | Ingestor → DB — OK                       |
 | 6   | REST API — OK                            |
-| 7-8 | LabVIEW UI — Zrobione                    |
+| 7-8 | Prezentacja danych — Streamlit (`wykresy_python/`); LabVIEW w archiwum |
+| 9   | Niezawodność ESP32 (reconnect, LWT) — OK |
+| 10  | Security MQTT — TLS, izolacja usług — OK  |
 
 Lab 2 (dummy sensor) pominięty — od razu wdrożone BMP280.
 

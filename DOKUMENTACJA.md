@@ -16,7 +16,7 @@ ESP32 + BMP280  ──MQTT──►  Mosquitto  ──MQTT──►  Ingestor  �
                                                                           │
                                                                           │ SQL
                                                                           ▼
-                                              LabVIEW UI  ◄──HTTP──  Flask API
+                                              Dashboard   ◄──HTTP──  Flask API
 ```
 
 ### Warstwy
@@ -32,18 +32,19 @@ ESP32 + BMP280  ──MQTT──►  Mosquitto  ──MQTT──►  Ingestor  �
    metadane (topic, czas odebrania).
 5. **REST API (Python + Flask)** — udostępnia dane przez endpointy GET
    zwracające JSON.
-6. **LabVIEW UI** — klient REST z dashboardem.
+6. **Dashboard webowy (Streamlit)** — klient REST z dashboardem (kafelki,
+   wykresy Plotly, historia, CSV). LabVIEW (`ui/`) w archiwum.
 
 ### Konteneryzacja
 
 Cztery serwisy w Docker Compose: `broker`, `database`, `ingestor`, `flask` (api).
-ESP32 i LabVIEW poza Dockerem (sprzęt fizyczny / aplikacja desktop).
+ESP32 i dashboard (Streamlit) poza Dockerem (sprzęt fizyczny / klient REST w przeglądarce).
 
 ### Decyzje architektoniczne
 
 - **ESP nie pisze do bazy bezpośrednio** — rozdzielenie warstw, walidacja
   centralna w ingestorze, kontrakt MQTT stabilnym interfejsem.
-- **LabVIEW przez REST, nie SQL** — REST ukrywa schemat bazy, daje stabilny
+- **Prezentacja przez REST, nie SQL** — REST ukrywa schemat bazy, daje stabilny
   kontrakt, pozwala filtrować po stronie backendu.
 - **Osobne topiki na sensor** — pozwala selektywnie subskrybować (np. tylko
   temperatury z wszystkich urządzeń przez `lab/+/+/temperature`).
@@ -302,7 +303,26 @@ curl "http://localhost:5001/history?device_id=esp32-F88DAB004F8C&sensor=temperat
 
 ---
 
-## 8. LabVIEW UI
+## 8. Prezentacja danych — Dashboard webowy (Streamlit)
+
+Warstwą prezentacji jest **dashboard w Streamlit** (`wykresy_python/`): kafelki
+aktualnych pomiarów, wykresy trendu (Plotly, linie spline, stały krok osi Y),
+historia z eksportem CSV, filtr dat i auto-odświeżanie. Czyta wyłącznie przez
+REST API (`localhost:5001`), działa **poza Dockerem**.
+
+```bash
+cd wykresy_python
+pip install -r requirements.txt
+streamlit run app.py        # http://localhost:8501
+```
+
+Pełna dokumentacja: [`docs/wykresy.md`](docs/wykresy.md).
+
+> **LabVIEW — archiwum.** Poniższy opis dotyczy poprzedniej warstwy prezentacji
+> (LabVIEW), z której zrezygnowano. Zostaje w repo (`ui/`,
+> [`docs/labview.md`](docs/labview.md)) jako archiwum.
+
+### (Archiwum) LabVIEW UI
 
 Aplikacja desktopowa w LabVIEW — warstwa prezentacji. Komunikuje się
 z backendem przez REST (Flask, `localhost:5001`), działa **poza Dockerem**.
@@ -508,7 +528,7 @@ Pełna dokumentacja: [`docs/security_tls.md`](docs/security_tls.md).
 | 4    | Kontrakt danych                      | OK (`docs/message_contract.md`)      |
 | 5    | Ingestor MQTT → DB                   | OK (`ingestor/`)                     |
 | 6    | REST API                             | OK (`api/`)                          |
-| 7-8  | LabVIEW UI                           | Zrobione                             |
+| 7-8  | Prezentacja danych                   | Streamlit (`wykresy_python/`, `docs/wykresy.md`); LabVIEW w archiwum |
 | 9    | Niezawodność (reconnect, LWT, status)| OK (`esp32/src/main.cpp`, `docs/reliability_esp32.md`) |
 | 10   | Security MQTT — TLS + izolacja usług | OK (`docs/security_tls.md`); auth/ACL: nie |
 | 11   | TLS (własne CA, broker 8883)         | OK (zob. lab 10)                     |
