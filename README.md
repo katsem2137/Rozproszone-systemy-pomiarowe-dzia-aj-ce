@@ -48,8 +48,8 @@ docker compose down
 | Serwis     | Adres                          | Test                                       |
 |------------|--------------------------------|--------------------------------------------|
 | REST API   | http://localhost:5001          | `curl http://localhost:5001/health`        |
-| MQTT       | localhost:1883                 | MQTT Explorer, bez auth                    |
-| PostgreSQL | localhost:5432                 | `docker exec -it postgres psql -U admin -d abcd_db` |
+| MQTT/TLS   | localhost:8883                 | MQTT Explorer z TLS + `certs/ca.crt` (zob. docs/security_tls.md) |
+| PostgreSQL | wewn. sieci Docker (5432)      | `docker exec -it postgres psql -U admin -d abcd_db` |
 
 ### Firmware ESP32
 
@@ -65,8 +65,9 @@ Build i flash z PlatformIO. Szczegóły: [`docs/esp32.md`](docs/esp32.md).
 ```
 .
 ├── api/               # Flask REST API (port 5001)
-├── broker/            # Eclipse Mosquitto config (port 1883)
-├── database/          # PostgreSQL 18 + init SQL (port 5432)
+├── broker/            # Eclipse Mosquitto — 8883 TLS + 1883 wewn.
+├── certs/             # Certyfikaty TLS (generowane lokalnie, w .gitignore)
+├── database/          # PostgreSQL 18 + init SQL (5432 wewn.)
 ├── docs/              # Dokumentacja modułowa
 ├── esp32/             # Firmware PlatformIO + BMP280
 ├── ingestor/          # Subskrypcja MQTT → INSERT do bazy

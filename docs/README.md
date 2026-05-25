@@ -16,6 +16,7 @@ PostgreSQL → Flask REST API → (LabVIEW UI).
 | [api.md](api.md)                               | REST API — endpointy, parametry, przykłady                    |
 | [labview.md](labview.md)                       | LabVIEW UI — VI, typedefy, JKI REST Client, uruchomienie      |
 | [reliability_esp32.md](reliability_esp32.md)   | Niezawodność ESP32 — reconnect Wi-Fi/MQTT, status, LWT        |
+| [security_tls.md](security_tls.md)             | Bezpieczeństwo — TLS na MQTT (8883), własne CA, izolacja usług |
 
 ## Wersja do druku
 
@@ -35,4 +36,4 @@ Cała dokumentacja zlepiona w jeden plik: [`DOKUMENTACJA.md`](../DOKUMENTACJA.md
 | 6   | REST API                       | Gotowe                                  |
 | 7-8 | LabVIEW UI                     | Zrobione                                |
 | 9   | Niezawodność ESP32 (reconnect, LWT) | Zrobione (`docs/reliability_esp32.md`) |
-| 10+ | Security MQTT, TLS             | Nie zaczęte                             |
+| 10  | Security MQTT — TLS, izolacja usług | Zrobione (`docs/security_tls.md`)   |

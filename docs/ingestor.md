@@ -132,8 +132,13 @@ python ingestor.py
 
 ### Publikacja testowa przez mosquitto_pub
 
+> Po lab 10 port `1883` nie jest wystawiony na hosta (tylko wewnątrz sieci
+> Docker). Testy uruchamiamy **wewnątrz kontenera brokera** przez `docker exec`
+> (wewnętrzny listener plaintext). Z hosta alternatywnie po TLS:
+> `-p 8883 --cafile certs/ca.crt`.
+
 ```bash
-mosquitto_pub -h localhost -p 1883 \
+docker exec broker mosquitto_pub -h localhost -p 1883 \
   -t "lab/g03/esp32-test/temperature" \
   -m '{"device_id":"esp32-test","sensor":"temperature","value":24.5,"unit":"C","ts_ms":1742030400000}'
 ```
@@ -145,7 +150,7 @@ Oczekiwane:
 ### Test wiadomości błędnej
 
 ```bash
-mosquitto_pub -h localhost -p 1883 \
+docker exec broker mosquitto_pub -h localhost -p 1883 \
   -t "lab/g03/esp32-test/temperature" \
   -m '{"device_id":"esp32-test","sensor":"temperature","value":24.5}'
 ```
@@ -159,7 +164,7 @@ Oczekiwane:
 ### Test złamanego JSON-a
 
 ```bash
-mosquitto_pub -h localhost -p 1883 \
+docker exec broker mosquitto_pub -h localhost -p 1883 \
   -t "lab/g03/esp32-test/temperature" \
   -m 'not a json'
 ```

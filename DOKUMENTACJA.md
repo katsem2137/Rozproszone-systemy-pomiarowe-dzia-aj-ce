@@ -23,8 +23,9 @@ ESP32 + BMP280  ──MQTT──►  Mosquitto  ──MQTT──►  Ingestor  �
 
 1. **ESP32 + BMP280** — pomiar temperatury i ciśnienia co 5 s, publikacja JSON
    do MQTT.
-2. **MQTT (Eclipse Mosquitto)** — broker na porcie 1883, bez uwierzytelniania
-   (etap rozwojowy).
+2. **MQTT (Eclipse Mosquitto)** — dwa listenery: `8883` TLS (ESP32, wystawiony
+   na hosta) oraz `1883` plaintext (tylko wewnątrz sieci Docker, dla ingestora).
+   Szczegóły: sekcja 10 (Bezpieczeństwo — TLS).
 3. **Ingestor (Python + paho-mqtt)** — subskrypcja `lab/+/+/+`, walidacja
    kontraktu, zapis do PostgreSQL.
 4. **PostgreSQL 18** — tabela `measurements` przechowuje wszystkie pomiary +
@@ -55,7 +56,8 @@ ESP32 i LabVIEW poza Dockerem (sprzęt fizyczny / aplikacja desktop).
 
 - Docker Desktop + Docker Compose (WSL2 backend na Windows).
 - PlatformIO (rozszerzenie VS Code) do firmware ESP32.
-- Wolne porty: `1883`, `5001`, `5432`.
+- Wolne porty: `8883` (MQTT/TLS), `5001` (API). Po lab 10 `1883` i `5432` nie są
+  wystawiane na hosta — działają tylko wewnątrz sieci Docker `backend`.
 
 ### Start backendu
 
@@ -104,7 +106,7 @@ Build i flash z PlatformIO (VS Code: paskek na dole). Monitor 115200 baud.
 
 ```bash
 # Broker
-# w MQTT Explorer: localhost:1883, bez auth — powinno połączyć
+# w MQTT Explorer: localhost:8883, włącz Encryption (TLS), wczytaj certs/ca.crt
 
 # Baza
 docker exec -it postgres psql -U admin -d abcd_db -c "SELECT * FROM measurements LIMIT 5;"
@@ -420,7 +422,66 @@ Pełna dokumentacja: [`docs/reliability_esp32.md`](docs/reliability_esp32.md).
 
 ---
 
-## 10. Test end-to-end
+## 10. Bezpieczeństwo — TLS na MQTT (lab 10)
+
+Komunikacja ESP32 ↔ broker została zaszyfrowana (TLS), a usługi w Dockerze
+odizolowane. Zastosowano **TLS na granicy zaufania**: ruch przez sieć Wi-Fi
+(ESP32 → broker) idzie po TLS na porcie `8883`, a ruch wewnątrz sieci Docker
+(ingestor → broker) pozostaje na `1883`, nieeksponowanym na hosta.
+
+### Własne CA
+
+Broker dostał certyfikat podpisany przez **własny urząd certyfikacji** (CA).
+Klient (ESP32) weryfikuje tożsamość brokera tym CA. Klucze prywatne
+(`certs/*.key`) są poza repozytorium (`.gitignore`); publiczny `ca.crt` jest
+wkompilowany w firmware.
+
+### Broker — dwa listenery (`broker/mosquitto.conf`)
+
+```conf
+listener 1883                         # tylko wewnątrz sieci Docker (ingestor)
+listener 8883                         # TLS — ESP32 i klienci zewnętrzni
+cafile   /mosquitto/certs/ca.crt
+certfile /mosquitto/certs/server.crt
+keyfile  /mosquitto/certs/server.key
+```
+
+Certyfikaty montowane do kontenera wolumenem `:ro` (klucz poza obrazem).
+
+### Izolacja (docker-compose)
+
+- dedykowana sieć bridge `backend`,
+- na hosta wystawione tylko `8883` (broker) i `5001` (API),
+- baza bez mapowania `5432` — nieosiągalna z hosta.
+
+### ESP32
+
+`WiFiClientSecure` + `setCACert(ca.crt)`, port `8883`. Wymaga ustawionego czasu
+(NTP) do weryfikacji dat ważności certyfikatu.
+
+### Pułapka: mbedTLS i IP w SAN
+
+ESP łączy się po IP, a mbedTLS dopasowuje nazwę hosta tylko do wpisów SAN typu
+**DNS**, nie **IP** — stąd `-9984 X509 verification failed` mimo poprawnego
+certyfikatu. Rozwiązanie: wpisać IP w SAN **także jako DNS** (`DNS:156.17.45.51`).
+Wymaga tylko przepisania certyfikatu serwera (CA bez zmian → ESP bez ponownego
+wgrywania).
+
+### Weryfikacja
+
+```bash
+# handshake + weryfikacja CA (z hosta), dopasowanie po nazwie jak mbedTLS:
+openssl s_client -connect 156.17.45.51:8883 -CAfile certs/ca.crt -verify_hostname 156.17.45.51
+# Verify return code: 0 (ok)
+
+# plaintext na 8883 jest odrzucany: "wrong version number / First packet not CONNECT"
+```
+
+Pełna dokumentacja: [`docs/security_tls.md`](docs/security_tls.md).
+
+---
+
+## 11. Test end-to-end
 
 1. Uruchom Compose: `docker compose up -d --build`.
 2. Wgraj firmware na ESP32 (skonfigurowany `secrets.h`).
@@ -436,7 +497,7 @@ Pełna dokumentacja: [`docs/reliability_esp32.md`](docs/reliability_esp32.md).
 
 ---
 
-## 11. Status vs laboratoria
+## 12. Status vs laboratoria
 
 | Lab  | Temat                                | Status                              |
 |------|--------------------------------------|--------------------------------------|
@@ -449,8 +510,8 @@ Pełna dokumentacja: [`docs/reliability_esp32.md`](docs/reliability_esp32.md).
 | 6    | REST API                             | OK (`api/`)                          |
 | 7-8  | LabVIEW UI                           | Zrobione                             |
 | 9    | Niezawodność (reconnect, LWT, status)| OK (`esp32/src/main.cpp`, `docs/reliability_esp32.md`) |
-| 10   | Security MQTT (auth, ACL)            | Nie                                  |
-| 11   | TLS                                  | Nie                                  |
+| 10   | Security MQTT — TLS + izolacja usług | OK (`docs/security_tls.md`); auth/ACL: nie |
+| 11   | TLS (własne CA, broker 8883)         | OK (zob. lab 10)                     |
 | 12   | Obserwowalność (healthchecks, logi)  | Częściowo (`/health` jest)           |
 | 13   | Skalowanie / load test               | Nie                                  |
 

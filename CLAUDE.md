@@ -37,7 +37,7 @@ GET /history?device_id=...&sensor=...&limit=...
 
 ```
 ESP32 + BMP280 (I2C GPIO 21/22)
-  → MQTT publish → Mosquitto broker (port 1883)
+  → MQTT/TLS publish → Mosquitto broker (8883 TLS, 1883 internal-only)
   → Ingestor subscribes to lab/+/+/+ → INSERT into PostgreSQL (port 5432)
   → Flask REST API (port 5001) SELECT → LabVIEW desktop client
 ```
@@ -54,7 +54,7 @@ ESP32 + BMP280 (I2C GPIO 21/22)
 |-----------|----------|------|
 | `api/` | Python/Flask | REST API; GET-only; uses `DISTINCT ON` for latest-per-device queries |
 | `ingestor/` | Python/paho-mqtt | MQTT subscriber; validates required fields; writes to `measurements` table |
-| `broker/` | Mosquitto | Anonymous MQTT broker; persistence enabled |
+| `broker/` | Mosquitto | Anonymous MQTT broker; TLS on 8883 (own CA, lab 10) + plaintext 1883 internal-only; persistence enabled |
 | `database/` | PostgreSQL 18 | Schema in `database/01-init_database.sql`; tables: `sensor`, `measurements` |
 | `esp32/` | C++/Arduino | Firmware; `esp32/src/main.cpp`; credentials in `esp32/secrets.h` (from `secrets.h.example`) |
 

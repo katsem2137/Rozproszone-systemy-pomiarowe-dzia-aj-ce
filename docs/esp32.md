@@ -154,7 +154,7 @@ nagłówków w `include/`).
 #define WIFI_SSID     "..."
 #define WIFI_PASSWORD "..."
 #define MQTT_HOST     "192.168.X.Y"  // IP HOSTA Z DOCKEREM, nie localhost!
-#define MQTT_PORT     1883
+#define MQTT_PORT     8883          // TLS (lab 10)
 #define MQTT_GROUP    "g03"
 ```
 

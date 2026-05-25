@@ -4,8 +4,9 @@
 
 - **Docker Desktop** + **Docker Compose** (Windows: WSL2 backend).
 - **PlatformIO** (VS Code extension) do firmware ESP32.
-- **MQTT Explorer** (opcjonalnie, do podglądu wiadomości).
-- Port `1883`, `5001`, `5432` wolne na hoście.
+- **MQTT Explorer** (opcjonalnie, do podglądu wiadomości — po lab 10 z TLS).
+- Porty `8883` (MQTT/TLS) i `5001` (API) wolne na hoście. Porty `1883` i `5432`
+  działają tylko wewnątrz sieci Docker (nie są mapowane na host).
 
 ## Backend — Docker Compose
 
@@ -55,7 +56,8 @@ docker compose down -v           # zatrzymaj + usuń wolumeny (kasuje bazę!)
 ### Broker MQTT
 
 W MQTT Explorer:
-- Host: `localhost`, Port: `1883`, bez uwierzytelniania.
+- Host: `localhost`, Port: `8883`, włącz **Encryption (TLS)** i wczytaj
+  `certs/ca.crt` (po lab 10 broker wymaga TLS — patrz [security_tls.md](security_tls.md)).
 - Powinno połączyć się i pokazać drzewo topiców `$SYS`.
 
 ### Baza PostgreSQL
@@ -105,7 +107,7 @@ musi trafić do `include/`, nie obok `secrets.h.example`):
 #define WIFI_SSID     "NAZWA_WIFI_LAB"
 #define WIFI_PASSWORD "HASLO_WIFI"
 #define MQTT_HOST     "192.168.X.Y"   // IP hosta z Dockerem (sprawdź ipconfig)
-#define MQTT_PORT     1883
+#define MQTT_PORT     8883          // TLS (lab 10)
 #define MQTT_GROUP    "g03"           // numer grupy laboratoryjnej
 ```
 
@@ -160,8 +162,8 @@ W VS Code z PlatformIO:
 **`Cannot connect to the Docker daemon`** — Docker Desktop nie działa lub WSL
 nie zintegrowany. W Docker Desktop: Settings → Resources → WSL Integration.
 
-**`port is already allocated`** — port 1883/5001/5432 zajęty. Sprawdź
-`netstat -ano | findstr :1883` i zabij proces albo zmień mapowanie portów
+**`port is already allocated`** — port 8883/5001 zajęty. Sprawdź
+`netstat -ano | findstr :8883` i zabij proces albo zmień mapowanie portów
 w `docker-compose.yml`.
 
 **Ingestor restartuje się w pętli** — baza jeszcze się nie zainicjalizowała,
@@ -169,7 +171,7 @@ ingestor próbuje połączyć się za wcześnie. `restart: on-failure` to obsłu
 poczekaj 10-20 s.
 
 **ESP32 nie łączy się z MQTT** — sprawdź `MQTT_HOST` (musi być IP hosta
-widoczne z sieci ESP, nie `localhost`). Sprawdź firewall Windows — port 1883
+widoczne z sieci ESP, nie `localhost`). Sprawdź firewall Windows — port 8883
 musi być otwarty dla sieci lokalnej.
 
 **`Nie znaleziono BMP280!`** — sprawdź połączenia I2C (SDA/SCL), zasilanie

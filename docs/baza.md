@@ -3,7 +3,7 @@
 ## Konfiguracja
 
 - **Obraz**: `postgres:18-alpine` (Dockerfile w `database/`).
-- **Port**: `5432` (mapowany na host).
+- **Port**: `5432` — tylko wewnątrz sieci Docker (po lab 10 nie mapowany na host).
 - **Dane logowania**: z `.env` (`DB_USER`, `DB_PASSWORD`, `DB_NAME`).
 - **Inicjalizacja**: `database/01-init_database.sql` uruchamia się
   automatycznie przy pierwszym starcie kontenera (mechanizm
@@ -118,8 +118,10 @@ GROUP BY device_id;
 # Przez kontener (najprostsze)
 docker exec -it postgres psql -U admin -d abcd_db
 
-# Z hosta (np. DBeaver, pgAdmin, VS Code SQLTools)
-# Host: localhost, Port: 5432, User: admin, DB: abcd_db
+# Z hosta (np. DBeaver, pgAdmin, VS Code SQLTools):
+# po lab 10 port 5432 NIE jest mapowany na host. Aby połączyć narzędziem z hosta,
+# tymczasowo dodaj `ports: ["5432:5432"]` do usługi `database` w docker-compose.yml
+# (albo korzystaj z `docker exec ... psql` powyżej).
 ```
 
 ## Persystencja

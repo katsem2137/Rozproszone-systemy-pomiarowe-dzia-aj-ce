@@ -34,8 +34,10 @@ backendowa odbiera, waliduje, zapisuje do bazy i udostępnia przez REST API.
 
 ### 2. Warstwa komunikacji — MQTT (Mosquitto)
 
-- Broker Eclipse Mosquitto (port `1883`).
-- Konfiguracja: `allow_anonymous true`, brak TLS (etap rozwojowy).
+- Broker Eclipse Mosquitto — dwa listenery: `1883` (plaintext, tylko wewnątrz
+  sieci Docker) oraz `8883` (TLS, dla ESP32 i klientów zewnętrznych).
+- Konfiguracja: `allow_anonymous true`; TLS z własnym CA (lab 10 — patrz
+  [security_tls.md](security_tls.md)).
 - Persystencja włączona (`/mosquitto/data/`).
 - Topic pattern: `lab/<group_id>/<device_id>/<sensor>`.
 
@@ -51,7 +53,7 @@ backendowa odbiera, waliduje, zapisuje do bazy i udostępnia przez REST API.
 
 - Dwie tabele: `sensor` (metadane urządzeń) i `measurements` (pomiary).
 - Inicjalizacja przez `database/01-init_database.sql` przy pierwszym starcie.
-- Port `5432` (mapowany na host w trybie dev).
+- Port `5432` — tylko wewnątrz sieci Docker (po lab 10 nie mapowany na host).
 
 ### 5. Warstwa dostępu — Flask REST API
 
@@ -72,8 +74,8 @@ Wszystkie serwisy backendowe uruchamiane przez Docker Compose. Cztery kontenery:
 
 | Kontener   | Obraz                  | Port  | Zależności          |
 |------------|------------------------|-------|---------------------|
-| `broker`   | `eclipse-mosquitto`    | 1883  | —                   |
-| `postgres` | `postgres:18-alpine`   | 5432  | —                   |
+| `broker`   | `eclipse-mosquitto`    | 8883 TLS (+1883 wewn.) | —      |
+| `postgres` | `postgres:18-alpine`   | 5432 (wewn.)           | —      |
 | `ingestor` | `python:3.10-slim`     | —     | broker, database    |
 | `api`      | `python:3.10-slim`     | 5001  | database            |
 
@@ -108,3 +110,4 @@ Pozwala subskrybować selektywnie (np. tylko temperatury z wszystkich urządzeń
 | 6   | REST API                       | OK (`api/app.py`)                      |
 | 7-8 | LabVIEW UI                     | Zrobione                               |
 | 9   | Niezawodność ESP32 (reconnect, LWT) | OK (`esp32/src/main.cpp`, `docs/reliability_esp32.md`) |
+| 10  | Security MQTT — TLS, izolacja usług | OK (`docs/security_tls.md`)            |
