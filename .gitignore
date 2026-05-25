@@ -2,6 +2,10 @@
 .env
 esp32/include/secrets.h
 
+# Certyfikaty TLS (lab 10) - klucze prywatne nie moga trafic do repo.
+# Komendy generujace sa udokumentowane w docs/security_tls.md
+certs/
+
 # Python
 __pycache__/
 *.pyc

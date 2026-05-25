@@ -12,22 +12,30 @@ services:
     env_file:
       - .env
     restart: on-failure
-  
+    networks:
+      - backend
+
   broker:
     build:
       context: ./broker
       dockerfile: Dockerfile
-    ports: 
-      - 1883:1883
+    # Na hosta publikujemy WYLACZNIE port TLS (8883) - dla ESP32.
+    # Port 1883 NIE jest publikowany: listener 1883 dziala tylko wewnatrz
+    # sieci 'backend' (dla ingestora).
+    ports:
+      - 8883:8883
     image: broker:v1
     container_name: broker
-  
+    volumes:
+      - ./certs:/mosquitto/certs:ro
+    networks:
+      - backend
+
   database:
     build:
       context: ./database
       dockerfile: Dockerfile
-    ports:
-      - 5432:5432
+    # Brak mapowania portu 5432 na hosta - baza osiagalna tylko w sieci 'backend'.
     image: database:v1
     container_name: postgres
     env_file:
@@ -36,6 +44,9 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
+    networks:
+      - backend
+
   ingestor:
     build:
       context: ./ingestor
@@ -48,3 +59,9 @@ services:
     restart: on-failure
     env_file:
       - .env
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge

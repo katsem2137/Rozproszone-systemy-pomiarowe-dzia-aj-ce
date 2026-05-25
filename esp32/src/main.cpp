@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <Adafruit_BMP280.h>
@@ -15,7 +16,33 @@
  * SDA  -> GPIO 21
  */
 
-WiFiClient espClient;
+// Certyfikat CA (publiczny) do weryfikacji tozsamosci brokera MQTT przez TLS.
+// Wygenerowany w lab 10; odpowiada plikowi certs/ca.crt w repozytorium.
+// Jezeli przegenerujesz CA (np. zmiana IP brokera), podmien tez ten blok.
+static const char* CA_CERT = R"EOF(
+-----BEGIN CERTIFICATE-----
+MIIDSjCCAjKgAwIBAgIULNB7B6mvKuPgd+nJAqiAxc+5qR8wDQYJKoZIhvcNAQEL
+BQAwPTELMAkGA1UEBhMCUEwxFDASBgNVBAoMC1BXciBMYWIgUlNQMRgwFgYDVQQD
+DA9SU1AgTGFiIFJvb3QgQ0EwHhcNMjYwNTI1MTU0MzAxWhcNMzYwNTIyMTU0MzAx
+WjA9MQswCQYDVQQGEwJQTDEUMBIGA1UECgwLUFdyIExhYiBSU1AxGDAWBgNVBAMM
+D1JTUCBMYWIgUm9vdCBDQTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEB
+AMIZ9jaopDzkBKppNbHyuw34nOgDo1TsI2qmF/9jxF265MTPTquFk433fUwJrjee
+lFxO3aQ8eI7Lzzmwx1kI3Iqw41K0O6F/3kvkY6PtXFxi0hKL1jMh1nBBeUp4mBXi
+DJbVI7jqC/szKN8qyYTIj2/d37ZagkLlOBsxOz/Zj5DWJW5QnM4fPJUgkTq8s0JA
+A8G0+HSL8+mPMuoZoWdX9eB7utadnXfudFpWyKSX3BcaQkIpBthPVbcMop6yTZiS
+6akKS+Gltl5a0QzLTfMNbF7o8uYcx0MpS0gpYY7++dwefWIPVG/KdZivWDL97gt/
+btL0gip2f2cE+SCH+u7DS3kCAwEAAaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAOBgNV
+HQ8BAf8EBAMCAQYwHQYDVR0OBBYEFM2UcPkY1KIkYsvQZmToGgSBqa4+MA0GCSqG
+SIb3DQEBCwUAA4IBAQAvCfxpCyynyXN9qoH0AF1LwexdCwplCe80TCHFcqPEO9IE
+cp/VqYP6qdacojXx9+gg+Z7fK+0W6JoD5Lg2s54OpVEcmHXjktgiPzDVKMu4/ozK
+YTjTk2trbOFREw1mX0swMaNgjW4i0mI6QfNP1fMeTW0UyohHKCYmbq2sXKRT2apM
+sEYHZ/SQ0gQgLYabhCAxLefNnd9ckQ8rDuepYWZjEh+EGpFhRx3Wp5gvKisBYb9U
+f9HJFxQZuBcXXQnPYcukrL3WA+/II6jaDk6ycilzndyyjl+KdLZCejcHFlAny9bC
+P7Pnu/eugHq4e2go2VvhsXBjocoYvxeXUb00nq6B
+-----END CERTIFICATE-----
+)EOF";
+
+WiFiClientSecure espClient;
 PubSubClient mqttClient(espClient);
 Adafruit_BMP280 bmp;
 
@@ -238,6 +265,7 @@ void setup() {
         Serial.println("[WiFi] Pierwsze polaczenie nie powiodlo sie - loop bedzie probowal dalej.");
     }
 
+    espClient.setCACert(CA_CERT);  // wlacza weryfikacje brokera po TLS (server auth)
     mqttClient.setServer(MQTT_HOST, MQTT_PORT);
 }
 

@@ -9,4 +9,4 @@ COPY mosquitto.conf /mosquitto/config/mosquitto.conf
 # CMD ["/usr/sbin/mosquitto", "-c", "/mosquitto/config/mosquitto.conf"] 
 # (To jest komenda, która fizycznie uruchamia serwer brokera).
 
-EXPOSE 1883
+EXPOSE 1883 8883
