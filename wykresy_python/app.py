@@ -30,7 +30,12 @@ def filter_by_date(df: pd.DataFrame, date_range: tuple) -> pd.DataFrame:
     return df[mask]
 
 
-def make_chart(df: pd.DataFrame, y_label: str, dtick: float, color_col: str = "device_id") -> go.Figure:
+def make_chart(
+    df: pd.DataFrame,
+    y_label: str,
+    dtick: float,
+    color_col: str = "device_id",
+) -> go.Figure:
     fig = go.Figure()
     for device in df[color_col].unique():
         sub = df[df[color_col] == device].sort_values("received_at")
