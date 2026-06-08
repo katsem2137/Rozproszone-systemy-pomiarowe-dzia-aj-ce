@@ -63,20 +63,80 @@ Całość odświeża się automatycznie co wybrany interwał (`st_autorefresh`).
 
 ## Uruchomienie
 
-Wymaga działającego backendu (API na porcie `5001`).
+Dashboard działa **poza Dockerem** — jest klientem REST API i nie wchodzi
+do sieci kontenerów. Wystarczy dostęp do portu `5001`.
+
+### Wymagania
+
+- Python 3.10 lub nowszy (`python --version`)
+- Działający backend: `docker compose up -d` w głównym katalogu repo
+
+### Krok po kroku
+
+**1. Uruchom backend (jeśli jeszcze nie działa)**
+
+```bash
+# w głównym katalogu repo
+docker compose up -d
+```
+
+Sprawdź, czy API odpowiada:
+
+```bash
+curl http://localhost:5001/health
+# oczekiwana odpowiedź: {"status": "ok"}
+```
+
+**2. Przejdź do katalogu dashboardu**
 
 ```bash
 cd wykresy_python
+```
+
+**3. (Zalecane) Utwórz wirtualne środowisko**
+
+```bash
+# Windows
+python -m venv .venv
+.venv\Scripts\activate
+
+# Linux / macOS
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+**4. Zainstaluj zależności** (tylko przy pierwszym uruchomieniu)
+
+```bash
 pip install -r requirements.txt
+```
+
+**5. Uruchom dashboard**
+
+```bash
 streamlit run app.py
 ```
 
-Dashboard otworzy się w przeglądarce (domyślnie `http://localhost:8501`).
-Jeśli API działa pod innym adresem, zmień Base URL w pasku bocznym.
+Przeglądarka otworzy się automatycznie pod adresem `http://localhost:8501`.
+W pasku bocznym powinien być widoczny komunikat **Backend: online ✓**.
 
-> Dashboard działa **poza Dockerem** (jak wcześniej LabVIEW) — jest klientem REST
-> i komunikuje się z API po HTTP. Nie musi być w tej samej sieci co kontenery,
-> wystarczy dostęp do portu `5001`.
+### Zmiana adresu backendu
+
+Jeśli API działa pod innym adresem (np. zdalny serwer), wpisz go w polu
+**Base URL backendu** w pasku bocznym — bez restartu aplikacji.
+
+### Wyłączenie dashboardu
+
+W terminalu, w którym działa Streamlit: `Ctrl+C`.
+
+### Typowe problemy
+
+| Objaw | Przyczyna | Rozwiązanie |
+|-------|-----------|-------------|
+| Backend: offline ✗ | Docker nie działa | `docker compose up -d` |
+| `ModuleNotFoundError` | Brak zależności | `pip install -r requirements.txt` |
+| Port 8501 zajęty | Inna instancja Streamlit | `streamlit run app.py --server.port 8502` |
+| Brak danych na wykresach | ESP32 nie nadaje / baza pusta | Sprawdź `docker logs ingestor` |
 
 ## Mapowanie widoków na endpointy API
 

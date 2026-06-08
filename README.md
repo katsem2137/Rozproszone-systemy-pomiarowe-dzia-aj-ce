@@ -43,6 +43,31 @@ docker compose up -d --build
 docker compose down
 ```
 
+### Dashboard webowy (Streamlit)
+
+Dashboard działa **poza Dockerem** — uruchom go osobno po starcie backendu:
+
+```bash
+cd wykresy_python
+
+# Pierwsze uruchomienie — utwórz środowisko wirtualne i zainstaluj zależności
+python -m venv .venv
+# Windows:
+.venv\Scripts\activate
+# Linux / macOS:
+# source .venv/bin/activate
+
+pip install -r requirements.txt
+
+# Uruchom
+streamlit run app.py
+```
+
+Dashboard otworzy się w przeglądarce pod `http://localhost:8501`.
+W pasku bocznym powinien być widoczny status **Backend: online ✓**.
+
+Szczegóły i rozwiązywanie problemów: [`docs/wykresy.md`](docs/wykresy.md).
+
 ### Weryfikacja
 
 | Serwis     | Adres                          | Test                                       |
