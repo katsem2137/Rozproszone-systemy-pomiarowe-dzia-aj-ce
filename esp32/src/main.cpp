@@ -266,6 +266,7 @@ void setup() {
     }
 
     espClient.setCACert(CA_CERT);  // wlacza weryfikacje brokera po TLS (server auth)
+    //espClient.setInsecure();
     mqttClient.setServer(MQTT_HOST, MQTT_PORT);
 }
 

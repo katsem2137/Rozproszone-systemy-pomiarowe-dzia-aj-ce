@@ -7,9 +7,12 @@ class APIError(Exception):
 
 
 class APIClient:
-    def __init__(self, base_url: str):
+    def __init__(self, base_url: str, username: str = None, password: str = None):
         self.base_url = base_url.rstrip("/")
         self.session = requests.Session()
+        # Basic Auth tylko gdy podano login; requests sam zbuduje naglowek
+        # Authorization: Basic <base64(user:pass)>.
+        self.auth = (username, password) if username else None
 
     def _get(self, path: str, params: dict = None) -> any:
         try:
@@ -17,6 +20,7 @@ class APIClient:
                 f"{self.base_url}{path}",
                 params=params,
                 timeout=REQUEST_TIMEOUT,
+                auth=self.auth,
             )
             r.raise_for_status()
             return r.json()
@@ -25,6 +29,8 @@ class APIClient:
         except requests.exceptions.Timeout:
             raise APIError(f"Timeout połączenia z backendem ({REQUEST_TIMEOUT}s)")
         except requests.exceptions.HTTPError as e:
+            if r.status_code == 401:
+                raise APIError("Brak autoryzacji (401): błędny login lub hasło.")
             raise APIError(f"Błąd HTTP {r.status_code}: {e}")
         except Exception as e:
             raise APIError(f"Nieoczekiwany błąd: {e}")

@@ -5,11 +5,21 @@ sys.path.insert(0, os.path.dirname(__file__))
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, time
 from streamlit_autorefresh import st_autorefresh
 
 from api_client import APIClient, APIError
-from config import DEFAULT_BASE_URL, DEFAULT_HISTORY_LIMIT, DEFAULT_REFRESH_INTERVAL
+from config import (
+    DEFAULT_BASE_URL,
+    DEFAULT_HISTORY_LIMIT,
+    DEFAULT_REFRESH_INTERVAL,
+    DEFAULT_USERNAME,
+    DEFAULT_PASSWORD,
+)
+
+# Backend zapisuje received_at w UTC (kontener bazy chodzi w UTC). Na potrzeby
+# WYSWIETLANIA przeliczamy na czas lokalny (z DST). Dane w bazie zostaja w UTC.
+LOCAL_TZ = "Europe/Warsaw"
 
 st.set_page_config(
     page_title="Systemy Pomiarowe",
@@ -19,7 +29,21 @@ st.set_page_config(
 
 
 def parse_datetime(series: pd.Series) -> pd.Series:
-    return pd.to_datetime(series, errors="coerce")
+    # Traktujemy wejscie jako UTC, konwertujemy na czas lokalny i zdejmujemy tz
+    # (naive local) — dzieki temu wykresy, tabela i filtry dat/godzin operuja
+    # na czasie, ktory widzi uzytkownik.
+    dt = pd.to_datetime(series, errors="coerce", utc=True)
+    return dt.dt.tz_convert(LOCAL_TZ).dt.tz_localize(None)
+
+
+def to_local_str(iso_str: str) -> str:
+    # Pojedynczy znacznik czasu (z /latest) UTC -> lokalny string do wyswietlenia.
+    if not iso_str:
+        return ""
+    ts = pd.to_datetime(iso_str, errors="coerce", utc=True)
+    if pd.isna(ts):
+        return iso_str
+    return ts.tz_convert(LOCAL_TZ).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def filter_by_date(df: pd.DataFrame, date_range: tuple) -> pd.DataFrame:
@@ -30,10 +54,24 @@ def filter_by_date(df: pd.DataFrame, date_range: tuple) -> pd.DataFrame:
     return df[mask]
 
 
+def filter_by_time(df: pd.DataFrame, start_t: time, end_t: time) -> pd.DataFrame:
+    # Filtr po porze dnia (godzina), niezaleznie od daty. Obsluguje tez zakres
+    # przechodzacy przez polnoc (np. 22:00–06:00).
+    if df.empty:
+        return df
+    times = df["received_at"].dt.time
+    if start_t <= end_t:
+        mask = (times >= start_t) & (times <= end_t)
+    else:
+        mask = (times >= start_t) | (times <= end_t)
+    return df[mask]
+
+
 def make_chart(
     df: pd.DataFrame,
     y_label: str,
     dtick: float,
+    x_range: list | None = None,
     color_col: str = "device_id",
 ) -> go.Figure:
     fig = go.Figure()
@@ -51,10 +89,10 @@ def make_chart(
     y_max = df["value"].max()
     padding = dtick * 2
     fig.update_layout(
-        xaxis_title="Czas",
         yaxis_title=y_label,
         legend_title_text="Urządzenie",
         margin=dict(t=20),
+        xaxis=dict(title="Czas", tickformat="%H:%M", range=x_range),
         yaxis=dict(
             dtick=dtick,
             range=[
@@ -66,11 +104,19 @@ def make_chart(
     return fig
 
 
-def sidebar() -> tuple[APIClient, str | None, int, int, tuple]:
+def sidebar() -> tuple[APIClient, str | None, int, int, tuple, tuple]:
     st.sidebar.title("⚙️ Konfiguracja")
 
     base_url = st.sidebar.text_input("Base URL backendu", value=DEFAULT_BASE_URL)
-    client = APIClient(base_url)
+
+    use_auth = st.sidebar.checkbox("Użyj Basic Auth", value=True)
+    username = None
+    password = None
+    if use_auth:
+        username = st.sidebar.text_input("Login", value=DEFAULT_USERNAME)
+        password = st.sidebar.text_input("Hasło", value=DEFAULT_PASSWORD, type="password")
+
+    client = APIClient(base_url, username, password)
 
     alive = client.health()
     if alive:
@@ -94,8 +140,12 @@ def sidebar() -> tuple[APIClient, str | None, int, int, tuple]:
     if alive:
         try:
             devices = client.devices()
+            if use_auth:
+                st.sidebar.success("Autoryzacja: OK ✓")
         except APIError:
             devices = []
+            if use_auth:
+                st.sidebar.error("Autoryzacja: 401 — sprawdź login/hasło")
         options = ["Wszystkie"] + devices
         selected = st.sidebar.selectbox("Urządzenie", options)
         device_id = None if selected == "Wszystkie" else selected
@@ -110,11 +160,20 @@ def sidebar() -> tuple[APIClient, str | None, int, int, tuple]:
         format="YYYY-MM-DD",
     )
 
+    st.sidebar.markdown("**Zakres godzin**")
+    filter_hours = st.sidebar.checkbox("Filtruj po godzinach", value=False)
+    time_range = None
+    if filter_hours:
+        col_a, col_b = st.sidebar.columns(2)
+        start_time = col_a.time_input("Od godziny", value=time(0, 0), step=timedelta(minutes=30))
+        end_time = col_b.time_input("Do godziny", value=time(23, 30), step=timedelta(minutes=30))
+        time_range = (start_time, end_time)
+
     st.sidebar.divider()
     st.sidebar.caption(f"Ostatnie odświeżenie: {datetime.now().strftime('%H:%M:%S')}")
     st.sidebar.button("Odśwież teraz", on_click=st.rerun)
 
-    return client, device_id, limit, refresh_interval, date_range
+    return client, device_id, limit, refresh_interval, date_range, time_range
 
 
 def section_current(client: APIClient, device_id: str | None):
@@ -140,7 +199,7 @@ def section_current(client: APIClient, device_id: str | None):
                 label=f"🌡️ Temperatura — {record['device_id']}",
                 value=f"{record['value']:.1f} {record.get('unit', '°C')}",
             )
-            st.caption(record.get("received_at", ""))
+            st.caption(to_local_str(record.get("received_at", "")))
         idx += 1
 
     for record in pres_data:
@@ -149,12 +208,19 @@ def section_current(client: APIClient, device_id: str | None):
                 label=f"🔵 Ciśnienie — {record['device_id']}",
                 value=f"{record['value']:.1f} {record.get('unit', 'hPa')}",
             )
-            st.caption(record.get("received_at", ""))
+            st.caption(to_local_str(record.get("received_at", "")))
         idx += 1
 
 
-def section_charts(client: APIClient, device_id: str | None, limit: int, date_range: tuple):
+def section_charts(client: APIClient, device_id: str | None, limit: int, date_range: tuple, time_range: tuple):
     st.header("Wykresy trendu")
+
+    x_range = None
+    if time_range and len(date_range) == 2:
+        x_range = [
+            datetime.combine(date_range[0], time_range[0]),
+            datetime.combine(date_range[1], time_range[1]),
+        ]
 
     col1, col2 = st.columns(2)
 
@@ -170,12 +236,14 @@ def section_charts(client: APIClient, device_id: str | None, limit: int, date_ra
             df = pd.DataFrame(data)
             df["received_at"] = parse_datetime(df["received_at"])
             df = filter_by_date(df, date_range)
+            if time_range:
+                df = filter_by_time(df, time_range[0], time_range[1])
             if df.empty:
-                st.info("Brak danych temperatury w wybranym zakresie dat.")
+                st.info("Brak danych temperatury w wybranym zakresie.")
             else:
                 unit = df["unit"].iloc[0] if "unit" in df.columns else "°C"
-                fig = make_chart(df, f"Temperatura [{unit}]", dtick=0.5)
-                st.plotly_chart(fig, use_container_width=True)
+                fig = make_chart(df, f"Temperatura [{unit}]", dtick=0.5, x_range=x_range)
+                st.plotly_chart(fig, width="stretch")
         else:
             st.info("Brak danych temperatury.")
 
@@ -191,17 +259,19 @@ def section_charts(client: APIClient, device_id: str | None, limit: int, date_ra
             df = pd.DataFrame(data)
             df["received_at"] = parse_datetime(df["received_at"])
             df = filter_by_date(df, date_range)
+            if time_range:
+                df = filter_by_time(df, time_range[0], time_range[1])
             if df.empty:
-                st.info("Brak danych ciśnienia w wybranym zakresie dat.")
+                st.info("Brak danych ciśnienia w wybranym zakresie.")
             else:
                 unit = df["unit"].iloc[0] if "unit" in df.columns else "hPa"
-                fig = make_chart(df, f"Ciśnienie [{unit}]", dtick=1.0)
-                st.plotly_chart(fig, use_container_width=True)
+                fig = make_chart(df, f"Ciśnienie [{unit}]", dtick=1.0, x_range=x_range)
+                st.plotly_chart(fig, width="stretch")
         else:
             st.info("Brak danych ciśnienia.")
 
 
-def section_history(client: APIClient, device_id: str | None, limit: int, date_range: tuple):
+def section_history(client: APIClient, device_id: str | None, limit: int, date_range: tuple, time_range: tuple):
     st.header("Historia pomiarów")
 
     try:
@@ -217,13 +287,15 @@ def section_history(client: APIClient, device_id: str | None, limit: int, date_r
     df = pd.DataFrame(data)
     df["received_at"] = parse_datetime(df["received_at"])
     df = filter_by_date(df, date_range)
+    if time_range:
+        df = filter_by_time(df, time_range[0], time_range[1])
     df = df.sort_values("received_at", ascending=False)
 
     if df.empty:
-        st.info("Brak rekordów w wybranym zakresie dat.")
+        st.info("Brak rekordów w wybranym zakresie.")
         return
 
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(df, width="stretch", hide_index=True)
 
     csv = df.to_csv(index=False).encode("utf-8")
     st.download_button(
@@ -237,15 +309,15 @@ def section_history(client: APIClient, device_id: str | None, limit: int, date_r
 def main():
     st.title("📡 Rozproszone Systemy Pomiarowe")
 
-    client, device_id, limit, refresh_interval, date_range = sidebar()
+    client, device_id, limit, refresh_interval, date_range, time_range = sidebar()
 
     st_autorefresh(interval=refresh_interval * 1000, key="autorefresh")
 
     section_current(client, device_id)
     st.divider()
-    section_charts(client, device_id, limit, date_range)
+    section_charts(client, device_id, limit, date_range, time_range)
     st.divider()
-    section_history(client, device_id, limit, date_range)
+    section_history(client, device_id, limit, date_range, time_range)
 
 
 if __name__ == "__main__":

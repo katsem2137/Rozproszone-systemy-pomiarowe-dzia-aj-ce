@@ -1,7 +1,15 @@
 from flask import Flask, jsonify, request
+import os
 import db
+from auth import auth_required
 
 app = Flask(__name__)
+
+# Maksymalny wiek (w sekundach) najnowszego odczytu, by urzadzenie bylo uznane
+# za "zywe" i pokazane w /latest. Starsze odczyty (np. martwe urzadzenia sprzed
+# dni/tygodni) sa pomijane. Konfigurowalne przez zmienna srodowiskowa
+# LATEST_MAX_AGE_SECONDS; domyslnie 300 s (5 min). /history i /devices NIE sa filtrowane.
+LATEST_MAX_AGE_SECONDS = int(os.environ.get("LATEST_MAX_AGE_SECONDS", "300"))
 
 @app.route("/")
 def hello_world():
@@ -12,6 +20,7 @@ def health():
     return jsonify({"status": "ok"})
 
 @app.route("/devices")
+@auth_required
 def get_devices():
     conn = db.get_connection()
     cur = conn.cursor()
@@ -30,6 +39,7 @@ def get_devices():
     return jsonify(devices)
 
 @app.route("/latest")
+@auth_required
 def get_latest():
     device_id = request.args.get("device_id")
 
@@ -42,15 +52,17 @@ def get_latest():
                 device_id, sensor, value, unit, ts_ms, received_at
             FROM measurements
             WHERE device_id = %s
+              AND received_at > CURRENT_TIMESTAMP - (%s * INTERVAL '1 second')
             ORDER BY device_id, sensor, received_at DESC
-        """, (device_id,))
+        """, (device_id, LATEST_MAX_AGE_SECONDS))
     else:
         cur.execute("""
             SELECT DISTINCT ON (device_id, sensor)
                 device_id, sensor, value, unit, ts_ms, received_at
             FROM measurements
+            WHERE received_at > CURRENT_TIMESTAMP - (%s * INTERVAL '1 second')
             ORDER BY device_id, sensor, received_at DESC
-        """)
+        """, (LATEST_MAX_AGE_SECONDS,))
 
     rows = cur.fetchall()
     cur.close()
@@ -71,6 +83,7 @@ def get_latest():
 
 
 @app.route("/history")
+@auth_required
 def get_history():
     device_id = request.args.get("device_id")
     sensor    = request.args.get("sensor")
@@ -126,16 +139,18 @@ def _get_latest_by_sensor(sensor_name, device_id):
             FROM measurements
             WHERE sensor = %s
             AND device_id = %s
+            AND received_at > CURRENT_TIMESTAMP - (%s * INTERVAL '1 second')
             ORDER BY device_id, received_at DESC
-        """, (sensor_name, device_id))
+        """, (sensor_name, device_id, LATEST_MAX_AGE_SECONDS))
     else:
         cur.execute("""
             SELECT DISTINCT ON (device_id)
                 device_id, sensor, value, unit, ts_ms, received_at
             FROM measurements
             WHERE sensor = %s
+            AND received_at > CURRENT_TIMESTAMP - (%s * INTERVAL '1 second')
             ORDER BY device_id, received_at DESC
-        """, (sensor_name,))
+        """, (sensor_name, LATEST_MAX_AGE_SECONDS))
 
     rows = cur.fetchall()
     cur.close()
@@ -152,11 +167,13 @@ def _get_latest_by_sensor(sensor_name, device_id):
 
 
 @app.route("/latest/temperature")
+@auth_required
 def get_latest_temperature():
     return jsonify(_get_latest_by_sensor("temperature", request.args.get("device_id")))
 
 
 @app.route("/latest/pressure")
+@auth_required
 def get_latest_pressure():
     return jsonify(_get_latest_by_sensor("pressure", request.args.get("device_id")))
 
