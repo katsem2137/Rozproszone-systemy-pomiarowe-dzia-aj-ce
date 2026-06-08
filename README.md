@@ -60,7 +60,7 @@ python -m venv .venv
 pip install -r requirements.txt
 
 # Uruchom
-streamlit run app.py
+python -m streamlit run app.py
 ```
 
 Dashboard otworzy się w przeglądarce pod `http://localhost:8501`.

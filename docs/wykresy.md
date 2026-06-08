@@ -114,8 +114,10 @@ pip install -r requirements.txt
 **5. Uruchom dashboard**
 
 ```bash
-streamlit run app.py
+python -m streamlit run app.py
 ```
+
+> Na niektórych systemach komenda `streamlit` może nie być w PATH — `python -m streamlit` działa zawsze.
 
 Przeglądarka otworzy się automatycznie pod adresem `http://localhost:8501`.
 W pasku bocznym powinien być widoczny komunikat **Backend: online ✓**.
