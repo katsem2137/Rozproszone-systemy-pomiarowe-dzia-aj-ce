@@ -96,6 +96,30 @@ Powinien w logach pisać:
 [OK] Zapisano z topicu: lab/g03/esp32-XXXX/temperature   # po każdej wiadomości
 ```
 
+## Dashboard webowy (Streamlit)
+
+Dashboard działa **poza Dockerem** — uruchom po starcie backendu:
+
+```bash
+cd wykresy_python
+
+# Pierwsze uruchomienie — zainstaluj zależności
+python -m pip install -r requirements.txt
+
+# Uruchom
+python -m streamlit run app.py
+```
+
+Przeglądarka otworzy się automatycznie pod `http://localhost:8501`.
+W pasku bocznym powinien być widoczny status **Backend: online ✓**.
+
+Jeśli chcesz wskazać inny adres backendu (np. IP koleżanki w sieci lokalnej),
+zmień pole **Base URL backendu** w pasku bocznym — bez restartu.
+
+Szczegóły i rozwiązywanie problemów: [`docs/wykresy.md`](wykresy.md).
+
+---
+
 ## Firmware ESP32
 
 ### Konfiguracja
@@ -150,12 +174,18 @@ W VS Code z PlatformIO:
 
 ## Test end-to-end
 
-1. Uruchom Docker Compose.
-2. Wgraj firmware na ESP32.
-3. ESP32 publikuje → broker → ingestor → baza.
-4. Sprawdź logi ingestora (`[OK] Zapisano...`).
-5. Sprawdź bazę (`SELECT ... FROM measurements`).
-6. Sprawdź API (`curl http://localhost:5001/latest`).
+1. Uruchom Docker Compose: `docker compose up -d`.
+2. Wgraj firmware na ESP32 (skonfigurowany `secrets.h`).
+3. ESP32 publikuje co 5 s → broker → ingestor → baza.
+4. Sprawdź logi ingestora (`docker compose logs -f ingestor`) — powinno lecieć `[OK] Zapisano...`.
+5. Sprawdź bazę:
+   ```bash
+   docker exec -it postgres psql -U admin -d abcd_db \
+     -c "SELECT device_id, sensor, value, received_at FROM measurements ORDER BY id DESC LIMIT 5;"
+   ```
+6. Sprawdź API: `curl http://localhost:5001/latest`.
+7. Uruchom dashboard: `cd wykresy_python && python -m streamlit run app.py`.
+   Pod `http://localhost:8501` powinny być widoczne aktualne kafelki i wykresy.
 
 ## Typowe problemy
 

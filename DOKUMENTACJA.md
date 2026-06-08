@@ -83,6 +83,23 @@ docker compose down       # zatrzymaj
 docker compose down -v    # + usuń wolumeny (kasuje bazę)
 ```
 
+### Dashboard webowy (Streamlit)
+
+Dashboard działa **poza Dockerem** — uruchom po starcie backendu:
+
+```bash
+cd wykresy_python
+
+# Pierwsze uruchomienie — zainstaluj zależności
+python -m pip install -r requirements.txt
+
+# Uruchom
+python -m streamlit run app.py
+```
+
+Przeglądarka otworzy się automatycznie pod `http://localhost:8501`.
+W pasku bocznym powinien być widoczny status **Backend: online ✓**.
+
 ### Firmware ESP32
 
 ```bash
@@ -312,8 +329,8 @@ REST API (`localhost:5001`), działa **poza Dockerem**.
 
 ```bash
 cd wykresy_python
-pip install -r requirements.txt
-streamlit run app.py        # http://localhost:8501
+python -m pip install -r requirements.txt
+python -m streamlit run app.py        # http://localhost:8501
 ```
 
 Pełna dokumentacja: [`docs/wykresy.md`](docs/wykresy.md).
@@ -505,7 +522,7 @@ Pełna dokumentacja: [`docs/security_tls.md`](docs/security_tls.md).
 
 1. Uruchom Compose: `docker compose up -d --build`.
 2. Wgraj firmware na ESP32 (skonfigurowany `secrets.h`).
-3. ESP32 publikuje co 5 s na dwa topici (temperature, pressure).
+3. ESP32 publikuje co 5 s na dwa topiki (temperature, pressure).
 4. Sprawdź logi ingestora: powinno lecieć `[OK] Zapisano...`.
 5. Sprawdź bazę:
    ```bash
@@ -514,6 +531,9 @@ Pełna dokumentacja: [`docs/security_tls.md`](docs/security_tls.md).
    ```
 6. Sprawdź API: `curl http://localhost:5001/latest` powinno zwrócić ostatnie
    pomiary.
+7. Uruchom dashboard: `cd wykresy_python && python -m streamlit run app.py`.
+   Pod `http://localhost:8501` powinny być widoczne aktualne kafelki i wykresy
+   z danymi z ESP32.
 
 ---
 
@@ -530,8 +550,5 @@ Pełna dokumentacja: [`docs/security_tls.md`](docs/security_tls.md).
 | 6    | REST API                             | OK (`api/`)                          |
 | 7-8  | Prezentacja danych                   | Streamlit (`wykresy_python/`, `docs/wykresy.md`); LabVIEW w archiwum |
 | 9    | Niezawodność (reconnect, LWT, status)| OK (`esp32/src/main.cpp`, `docs/reliability_esp32.md`) |
-| 10   | Security MQTT — TLS + izolacja usług | OK (`docs/security_tls.md`); auth/ACL: nie |
-| 11   | TLS (własne CA, broker 8883)         | OK (zob. lab 10)                     |
-| 12   | Obserwowalność (healthchecks, logi)  | Częściowo (`/health` jest)           |
-| 13   | Skalowanie / load test               | Nie                                  |
+| 10   | Security MQTT — TLS + izolacja usług | OK (`docs/security_tls.md`)          |
 
