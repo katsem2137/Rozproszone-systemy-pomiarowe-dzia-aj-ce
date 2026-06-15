@@ -44,7 +44,7 @@ Weryfikacja:
 |--------|-------|------|
 | REST API | `http://localhost:5001` | `curl http://localhost:5001/health` → `{"status":"ok"}` |
 | MQTT/TLS | `localhost:8883` | MQTT Explorer + `certs/ca.crt` |
-| PostgreSQL | wewn. Docker (5432) | `docker exec -it postgres psql -U admin -d abcd_db` |
+| PostgreSQL | wewn. Docker (5432) | `docker exec -it postgres psql -U login -d haslo` |
 
 ### 2. Dashboard webowy
 
