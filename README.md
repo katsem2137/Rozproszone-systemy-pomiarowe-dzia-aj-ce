@@ -1,5 +1,6 @@
 # Rozproszone Systemy Pomiarowe
 
+Porty poprawić w tej dokumentacji, połączyć md w jedno - zrobić pdf, zip repo na eportal, 
 Projekt laboratoryjny z przedmiotu **Systemy Rozproszone**. Pełny stos IoT: czujniki BMP280 na mikrokontrolerach ESP32 zbierają temperaturę i ciśnienie, przesyłają dane przez MQTT, backend zapisuje je do bazy PostgreSQL, a Flask REST API udostępnia je dashboardowi webowemu w Streamlit.
 
 ## Architektura
