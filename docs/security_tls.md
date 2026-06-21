@@ -75,6 +75,13 @@ repozytorium**. Publiczny `ca.crt` jest dodatkowo wkompilowany w firmware ESP32.
 
 ### Komendy generujące
 
+**Najszybciej — skrypt.** Z katalogu projektu uruchom `bash generuj-certy.sh <IP_HOSTA>`
+(np. `bash generuj-certy.sh 156.17.45.169`). Skrypt utworzy cały katalog `certs/` —
+`openssl.cnf` z poprawnym SAN, CA oraz certyfikat serwera dla podanego IP. CA jest
+reużywane przy ponownym uruchomieniu (zmiana IP nie wymaga ponownego wgrywania firmware
+ESP32). IP hosta sprawdzisz przez `ipconfig` (Windows → Wi-Fi → IPv4) lub `hostname -I`
+(Linux/WSL). Poniżej ta sama procedura wykonana ręcznie, krok po kroku:
+
 > Uwaga (Windows / Git Bash): leading `/` w `-subj` bywa zamieniany na ścieżkę
 > Windows. Jeśli `openssl req` zgłasza błąd subjectu, ustaw `export
 > MSYS_NO_PATHCONV=1` przed komendami.

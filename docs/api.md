@@ -212,7 +212,7 @@ debugowym (bo `debug=True`).
 
 ## Bezpieczeństwo
 
-- **Brak uwierzytelniania** — etap rozwojowy.
+- **Uwierzytelnianie — HTTP Basic Auth (lab 11)** — wszystkie endpointy zwracające dane są chronione dekoratorem `@auth_required`; publiczne pozostają tylko `/` i `/health`. Dane logowania pochodzą ze zmiennych `API_USERNAME` / `API_PASSWORD`. Szczegóły: [basic_auth.md](basic_auth.md).
 - **CORS niezdefiniowany** — przeglądarka z innego origin (np. file://)
   zablokuje. Do dodania: `flask-cors` jeśli klient webowy.
 - **SQL Injection** — zabezpieczony przez parametryzację `%s` w psycopg2

@@ -18,6 +18,7 @@ PostgreSQL → Flask REST API → dashboard webowy (Streamlit).
 | [labview.md](labview.md)                       | LabVIEW UI — **archiwum** (zastąpione przez Streamlit)        |
 | [reliability_esp32.md](reliability_esp32.md)   | Niezawodność ESP32 — reconnect Wi-Fi/MQTT, status, LWT        |
 | [security_tls.md](security_tls.md)             | Bezpieczeństwo — TLS na MQTT (8883), własne CA, izolacja usług |
+| [basic_auth.md](basic_auth.md)             | Uwierzytelnianie REST API — HTTP Basic Auth (lab 11)          |
 
 ## Wersja do druku
 
@@ -38,3 +39,4 @@ Cała dokumentacja zlepiona w jeden plik: [`DOKUMENTACJA.md`](../DOKUMENTACJA.md
 | 7-8 | Prezentacja danych             | Streamlit (`wykresy_python/`); LabVIEW w archiwum |
 | 9   | Niezawodność ESP32 (reconnect, LWT) | Zrobione (`docs/reliability_esp32.md`) |
 | 10  | Security MQTT — TLS, izolacja usług | Zrobione (`docs/security_tls.md`)   |
+| 11  | Bezpieczeństwo API — HTTP Basic Auth | Zrobione (`api/auth.py`, `docs/basic_auth.md`) |

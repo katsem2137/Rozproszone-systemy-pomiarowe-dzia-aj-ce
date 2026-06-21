@@ -116,3 +116,4 @@ Pozwala subskrybować selektywnie (np. tylko temperatury z wszystkich urządzeń
 | 7-8 | Prezentacja danych             | Streamlit (`wykresy_python/`); LabVIEW w archiwum |
 | 9   | Niezawodność ESP32 (reconnect, LWT) | OK (`esp32/src/main.cpp`, `docs/reliability_esp32.md`) |
 | 10  | Security MQTT — TLS, izolacja usług | OK (`docs/security_tls.md`)            |
+| 11  | Bezpieczeństwo API — HTTP Basic Auth | OK (`api/auth.py`, `docs/basic_auth.md`) |
